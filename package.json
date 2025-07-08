@@ -1,0 +1,25 @@
+{
+  "name": "klipdot-terminal-interceptor",
+  "version": "1.0.0",
+  "description": "Universal terminal image interceptor that maps images to file paths for any CLI/TUI application",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "clipboard": "^2.0.11",
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7",
+    "sharp": "^0.32.6",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["clipboard", "image", "terminal", "cli", "tui", "paste", "interceptor"],
+  "author": "KlipDot",
+  "license": "MIT"
+}
