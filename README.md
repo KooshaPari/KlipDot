@@ -23,13 +23,17 @@ A high-performance, universal terminal image interceptor that automatically capt
 # Build the klipdot binary
 cargo build --release
 
-# Install system-wide
+# Install to user PATH (recommended)
+mkdir -p ~/bin
+cp target/release/klipdot ~/bin/
+chmod +x ~/bin/klipdot
+
+# Or install system-wide
 sudo cp target/release/klipdot /usr/local/bin/
 
-# Or install to user directory
-mkdir -p ~/.local/bin
-cp target/release/klipdot ~/.local/bin/
-export PATH="$HOME/.local/bin:$PATH"
+# Verify installation
+klipdot --version
+klipdot --help
 ```
 
 ### Complete Setup

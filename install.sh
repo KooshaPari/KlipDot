@@ -1,20 +1,21 @@
 #!/bin/bash
 
-# Claude-Code Clipboard Handler Installation Script
-# Supports macOS and Linux with ZSH/Bash
+# KlipDot Installation Script
+# Supports macOS, Linux, and Windows with ZSH/Bash
 
 set -e
 
-CLAUDE_CODE_DIR="$HOME/.claude-code"
+KLIPDOT_DIR="$HOME/.klipdot"
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "🚀 Installing Claude-Code Clipboard Handler..."
+echo "🚀 Installing KlipDot..."
 
 # Detect OS
 OS="$(uname -s)"
 case "${OS}" in
     Linux*)     MACHINE=Linux;;
     Darwin*)    MACHINE=Mac;;
+    CYGWIN*|MINGW32*|MSYS*|MINGW*) MACHINE=Windows;;
     *)          MACHINE="UNKNOWN:${OS}"
 esac
 
@@ -24,429 +25,204 @@ echo "📋 Detected OS: $MACHINE"
 SHELL_TYPE="$(basename "$SHELL")"
 echo "🐚 Detected Shell: $SHELL_TYPE"
 
-# Create directories
-echo "📁 Creating directories..."
-mkdir -p "$CLAUDE_CODE_DIR"
-mkdir -p "$CLAUDE_CODE_DIR/hooks"
-mkdir -p "$CLAUDE_CODE_DIR/temp"
-mkdir -p "$CLAUDE_CODE_DIR/watch"
-mkdir -p "$CLAUDE_CODE_DIR/stdin-buffer"
-mkdir -p "$CLAUDE_CODE_DIR/clipboard-screenshots"
+# Build the binary
+echo "🔨 Building klipdot binary..."
+cargo build --release
 
-# Copy source files
-echo "📄 Copying source files..."
-cp -r "$INSTALL_DIR/src/"* "$CLAUDE_CODE_DIR/"
-cp "$INSTALL_DIR/package.json" "$CLAUDE_CODE_DIR/"
+# Determine install location
+if [ -d "$HOME/bin" ] && [[ ":$PATH:" == *":$HOME/bin:"* ]]; then
+    INSTALL_DIR="$HOME/bin"
+    echo "📁 Installing to user directory: $INSTALL_DIR"
+elif [ -d "$HOME/.local/bin" ] && [[ ":$PATH:" == *":$HOME/.local/bin:"* ]]; then
+    INSTALL_DIR="$HOME/.local/bin"
+    echo "📁 Installing to user directory: $INSTALL_DIR"
+elif [ -w "/usr/local/bin" ]; then
+    INSTALL_DIR="/usr/local/bin"
+    echo "📁 Installing to system directory: $INSTALL_DIR"
+else
+    # Default to user bin directory
+    INSTALL_DIR="$HOME/bin"
+    mkdir -p "$INSTALL_DIR"
+    echo "📁 Installing to user directory: $INSTALL_DIR"
+    echo "⚠️  Make sure $INSTALL_DIR is in your PATH"
+    echo "Add this to your shell profile: export PATH=\"$INSTALL_DIR:\$PATH\""
+fi
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-cd "$CLAUDE_CODE_DIR"
-npm install --production
+# Copy binary
+echo "📦 Installing klipdot binary..."
+cp target/release/klipdot "$INSTALL_DIR/"
+chmod +x "$INSTALL_DIR/klipdot"
 
-# Make scripts executable
-chmod +x "$CLAUDE_CODE_DIR/terminal-handler.js"
-chmod +x "$CLAUDE_CODE_DIR/stdin-wrapper.js"
-chmod +x "$CLAUDE_CODE_DIR/cli.js"
+# Create klipdot directories
+echo "📁 Creating klipdot directories..."
+mkdir -p "$KLIPDOT_DIR"
+mkdir -p "$KLIPDOT_DIR/screenshots"
+mkdir -p "$KLIPDOT_DIR/hooks"
+mkdir -p "$KLIPDOT_DIR/temp"
+mkdir -p "$KLIPDOT_DIR/logs"
+
+# Create default configuration
+echo "⚙️  Creating default configuration..."
+cat > "$KLIPDOT_DIR/config.json" << 'EOF'
+{
+  "enabled": true,
+  "autoStart": false,
+  "daemon": {
+    "enabled": false,
+    "pidFile": "~/.klipdot/klipdot.pid",
+    "logFile": "~/.klipdot/klipdot.log"
+  },
+  "interception": {
+    "clipboard": true,
+    "fileOperations": true,
+    "dragDrop": true,
+    "stdin": true,
+    "processMonitoring": true
+  },
+  "storage": {
+    "directory": "~/.klipdot/screenshots",
+    "maxFileSize": "10MB",
+    "compressionQuality": 90,
+    "retentionDays": 30,
+    "autoCleanup": true
+  },
+  "imageFormats": ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"],
+  "performance": {
+    "clipboardPollInterval": 1000,
+    "fileWatchInterval": 500,
+    "processPollInterval": 5000,
+    "maxConcurrentProcessing": 4
+  },
+  "security": {
+    "allowExternalAccess": false,
+    "restrictedPaths": [],
+    "maxImageSize": "50MB"
+  }
+}
+EOF
+
+# Create shell integration files
+echo "🔧 Setting up shell integration..."
+
+# ZSH integration
+cat > "$KLIPDOT_DIR/hooks/zsh-integration.zsh" << 'EOF'
+# KlipDot ZSH Integration
+# This file is automatically sourced by ZSH
+
+# Start klipdot service if not running
+if ! pgrep -f "klipdot.*start" > /dev/null 2>&1; then
+    klipdot start --daemon > /dev/null 2>&1 &
+fi
+
+# Helper function to handle image pastes
+klipdot_handle_paste() {
+    local paste_content
+    if command -v pbpaste > /dev/null 2>&1; then
+        paste_content="$(pbpaste)"
+    elif command -v xclip > /dev/null 2>&1; then
+        paste_content="$(xclip -selection clipboard -o)"
+    elif command -v wl-paste > /dev/null 2>&1; then
+        paste_content="$(wl-paste)"
+    fi
+    
+    # Check if content looks like an image path
+    if [[ "$paste_content" =~ \.(png|jpg|jpeg|gif|bmp|webp|svg)$ ]]; then
+        echo "$paste_content"
+    fi
+}
+
+# Command aliases with klipdot integration
+alias kpaste='klipdot_handle_paste'
+EOF
+
+# Bash integration
+cat > "$KLIPDOT_DIR/hooks/bash-integration.bash" << 'EOF'
+# KlipDot Bash Integration
+# This file is automatically sourced by Bash
+
+# Start klipdot service if not running
+if ! pgrep -f "klipdot.*start" > /dev/null 2>&1; then
+    klipdot start --daemon > /dev/null 2>&1 &
+fi
+
+# Helper function to handle image pastes
+klipdot_handle_paste() {
+    local paste_content
+    if command -v pbpaste > /dev/null 2>&1; then
+        paste_content="$(pbpaste)"
+    elif command -v xclip > /dev/null 2>&1; then
+        paste_content="$(xclip -selection clipboard -o)"
+    elif command -v wl-paste > /dev/null 2>&1; then
+        paste_content="$(wl-paste)"
+    fi
+    
+    # Check if content looks like an image path
+    if [[ "$paste_content" =~ \.(png|jpg|jpeg|gif|bmp|webp|svg)$ ]]; then
+        echo "$paste_content"
+    fi
+}
+
+# Command aliases with klipdot integration
+alias kpaste='klipdot_handle_paste'
+EOF
 
 # Install shell hooks
-echo "🔗 Installing shell hooks..."
-
-if [[ "$SHELL_TYPE" == "zsh" ]]; then
-    echo "Installing ZSH hooks..."
-    
-    # Create ZSH hook file
-    cat > "$CLAUDE_CODE_DIR/hooks/zsh-hooks.zsh" << 'EOF'
-# Claude-Code Terminal Interceptor ZSH Hooks
-CLAUDE_CODE_DIR="$HOME/.claude-code"
-CLAUDE_CODE_TEMP="$CLAUDE_CODE_DIR/temp"
-CLAUDE_CODE_HANDLER="$CLAUDE_CODE_DIR/terminal-handler.js"
-
-# Function to handle image files
-claude_code_handle_image() {
-  local file_path="$1"
-  if [[ -f "$file_path" ]]; then
-    local mime_type=$(file --mime-type -b "$file_path" 2>/dev/null)
-    if [[ "$mime_type" =~ ^image/ ]]; then
-      node "$CLAUDE_CODE_HANDLER" handle-image "$file_path" 2>/dev/null &
-      return $?
-    fi
-  fi
-  return 1
-}
-
-# Hook into command execution
-preexec_claude_code() {
-  local cmd="$1"
-  
-  # Check for image-related commands
-  if [[ "$cmd" =~ (cp|mv|scp|rsync).*\.(png|jpg|jpeg|gif|bmp|webp|svg) ]]; then
-    echo "[Claude-Code] Image operation detected"
-  fi
-  
-  # Check for file arguments that might be images
-  local args=("${(@s/ /)cmd}")
-  for arg in "${args[@]}"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-}
-
-# Hook into command completion
-precmd_claude_code() {
-  # Check for new files in current directory
-  for file in *.{png,jpg,jpeg,gif,bmp,webp,svg}(N); do
-    if [[ -f "$file" ]]; then
-      claude_code_handle_image "$file"
-    fi
-  done
-}
-
-# Add hooks to ZSH
-if [[ -n "$ZSH_VERSION" ]]; then
-  autoload -Uz add-zsh-hook
-  add-zsh-hook preexec preexec_claude_code
-  add-zsh-hook precmd precmd_claude_code
-fi
-
-# Enhanced aliases
-alias cp='claude_code_cp'
-alias mv='claude_code_mv'
-alias scp='claude_code_scp'
-
-claude_code_cp() {
-  local result
-  command cp "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-
-claude_code_mv() {
-  local result
-  command mv "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-
-claude_code_scp() {
-  local result
-  command scp "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-EOF
-
-    # Add to .zshrc
-    if [[ -f "$HOME/.zshrc" ]]; then
-        if ! grep -q "source.*claude-code.*zsh-hooks" "$HOME/.zshrc"; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# Claude-Code Terminal Interceptor" >> "$HOME/.zshrc"
-            echo "source \"$CLAUDE_CODE_DIR/hooks/zsh-hooks.zsh\"" >> "$HOME/.zshrc"
-            echo "✅ Added hooks to ~/.zshrc"
-        else
-            echo "✅ Hooks already present in ~/.zshrc"
-        fi
-    fi
-
-elif [[ "$SHELL_TYPE" == "bash" ]]; then
-    echo "Installing Bash hooks..."
-    
-    # Create Bash hook file
-    cat > "$CLAUDE_CODE_DIR/hooks/bash-hooks.bash" << 'EOF'
-# Claude-Code Terminal Interceptor Bash Hooks
-CLAUDE_CODE_DIR="$HOME/.claude-code"
-CLAUDE_CODE_TEMP="$CLAUDE_CODE_DIR/temp"
-CLAUDE_CODE_HANDLER="$CLAUDE_CODE_DIR/terminal-handler.js"
-
-# Function to handle image files
-claude_code_handle_image() {
-  local file_path="$1"
-  if [[ -f "$file_path" ]]; then
-    local mime_type=$(file --mime-type -b "$file_path" 2>/dev/null)
-    if [[ "$mime_type" =~ ^image/ ]]; then
-      node "$CLAUDE_CODE_HANDLER" handle-image "$file_path" 2>/dev/null &
-      return $?
-    fi
-  fi
-  return 1
-}
-
-# Hook into command execution
-claude_code_preexec() {
-  local cmd="$BASH_COMMAND"
-  
-  # Check for image-related commands
-  if [[ "$cmd" =~ (cp|mv|scp|rsync).*\.(png|jpg|jpeg|gif|bmp|webp|svg) ]]; then
-    echo "[Claude-Code] Image operation detected"
-  fi
-  
-  # Check for file arguments that might be images
-  for arg in $cmd; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-}
-
-# Hook into prompt
-claude_code_precmd() {
-  # Check for new files in current directory
-  for file in *.{png,jpg,jpeg,gif,bmp,webp,svg}; do
-    if [[ -f "$file" ]] 2>/dev/null; then
-      claude_code_handle_image "$file"
-    fi
-  done 2>/dev/null
-}
-
-# Set up command hooks
-trap 'claude_code_preexec' DEBUG
-if [[ -z "$PROMPT_COMMAND" ]]; then
-  PROMPT_COMMAND="claude_code_precmd"
-else
-  PROMPT_COMMAND="claude_code_precmd;$PROMPT_COMMAND"
-fi
-
-# Enhanced aliases
-alias cp='claude_code_cp'
-alias mv='claude_code_mv'
-alias scp='claude_code_scp'
-
-claude_code_cp() {
-  local result
-  command cp "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-
-claude_code_mv() {
-  local result
-  command mv "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-
-claude_code_scp() {
-  local result
-  command scp "$@"
-  result=$?
-  
-  for arg in "$@"; do
-    if [[ -f "$arg" ]]; then
-      claude_code_handle_image "$arg"
-    fi
-  done
-  
-  return $result
-}
-EOF
-
-    # Add to .bashrc
-    if [[ -f "$HOME/.bashrc" ]]; then
-        if ! grep -q "source.*claude-code.*bash-hooks" "$HOME/.bashrc"; then
-            echo "" >> "$HOME/.bashrc"
-            echo "# Claude-Code Terminal Interceptor" >> "$HOME/.bashrc"
-            echo "source \"$CLAUDE_CODE_DIR/hooks/bash-hooks.bash\"" >> "$HOME/.bashrc"
-            echo "✅ Added hooks to ~/.bashrc"
-        else
-            echo "✅ Hooks already present in ~/.bashrc"
-        fi
-    fi
-fi
-
-# Install system-level dependencies
-echo "🔧 Installing system dependencies..."
-
-if [[ "$MACHINE" == "Mac" ]]; then
-    echo "Installing macOS dependencies..."
-    
-    # Check for Homebrew
-    if ! command -v brew &> /dev/null; then
-        echo "⚠️  Homebrew not found. Some features may not work."
-        echo "   Install Homebrew: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
-    else
-        # Install fswatch for file monitoring
-        if ! command -v fswatch &> /dev/null; then
-            echo "Installing fswatch..."
-            brew install fswatch
-        fi
-    fi
-    
-elif [[ "$MACHINE" == "Linux" ]]; then
-    echo "Installing Linux dependencies..."
-    
-    # Detect package manager
-    if command -v apt-get &> /dev/null; then
-        echo "Installing dependencies with apt..."
-        sudo apt-get update
-        sudo apt-get install -y inotify-tools xclip file
-    elif command -v yum &> /dev/null; then
-        echo "Installing dependencies with yum..."
-        sudo yum install -y inotify-tools xclip file
-    elif command -v pacman &> /dev/null; then
-        echo "Installing dependencies with pacman..."
-        sudo pacman -S inotify-tools xclip file
-    else
-        echo "⚠️  Unknown package manager. Please install manually:"
-        echo "   - inotify-tools (for file monitoring)"
-        echo "   - xclip (for clipboard access)"
-        echo "   - file (for MIME type detection)"
-    fi
-fi
-
-# Create service script
-echo "🛠️  Creating service script..."
-cat > "$CLAUDE_CODE_DIR/service.sh" << 'EOF'
-#!/bin/bash
-
-# Claude-Code Clipboard Handler Service
-CLAUDE_CODE_DIR="$HOME/.claude-code"
-PID_FILE="$CLAUDE_CODE_DIR/clipboard-handler.pid"
-LOG_FILE="$CLAUDE_CODE_DIR/clipboard-handler.log"
-
-start() {
-  if [[ -f "$PID_FILE" ]]; then
-    PID=$(cat "$PID_FILE")
-    if kill -0 "$PID" 2>/dev/null; then
-      echo "Service already running (PID: $PID)"
-      return 1
-    fi
-  fi
-  
-  echo "Starting Claude-Code Clipboard Handler..."
-  cd "$CLAUDE_CODE_DIR"
-  nohup node cli.js start > "$LOG_FILE" 2>&1 &
-  echo $! > "$PID_FILE"
-  echo "Service started (PID: $!)"
-}
-
-stop() {
-  if [[ -f "$PID_FILE" ]]; then
-    PID=$(cat "$PID_FILE")
-    if kill -0 "$PID" 2>/dev/null; then
-      echo "Stopping service (PID: $PID)..."
-      kill "$PID"
-      rm -f "$PID_FILE"
-      echo "Service stopped"
-    else
-      echo "Service not running"
-      rm -f "$PID_FILE"
-    fi
-  else
-    echo "Service not running"
-  fi
-}
-
-status() {
-  if [[ -f "$PID_FILE" ]]; then
-    PID=$(cat "$PID_FILE")
-    if kill -0 "$PID" 2>/dev/null; then
-      echo "Service running (PID: $PID)"
-    else
-      echo "Service not running (stale PID file)"
-      rm -f "$PID_FILE"
-    fi
-  else
-    echo "Service not running"
-  fi
-}
-
-case "$1" in
-  start)
-    start
-    ;;
-  stop)
-    stop
-    ;;
-  restart)
-    stop
-    sleep 2
-    start
-    ;;
-  status)
-    status
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|restart|status}"
-    exit 1
+echo "🐚 Installing shell hooks..."
+case "$SHELL_TYPE" in
+    zsh)
+        SHELL_RC="$HOME/.zshrc"
+        HOOK_LINE="source $KLIPDOT_DIR/hooks/zsh-integration.zsh"
+        ;;
+    bash)
+        SHELL_RC="$HOME/.bashrc"
+        HOOK_LINE="source $KLIPDOT_DIR/hooks/bash-integration.bash"
+        ;;
+    *)
+        echo "⚠️  Unknown shell type: $SHELL_TYPE"
+        echo "You may need to manually add shell integration"
+        SHELL_RC=""
+        ;;
 esac
-EOF
 
-chmod +x "$CLAUDE_CODE_DIR/service.sh"
-
-# Create CLI wrapper
-echo "🔧 Creating CLI wrapper..."
-cat > "$HOME/.local/bin/claude-code-clipboard" << EOF
-#!/bin/bash
-exec "$CLAUDE_CODE_DIR/cli.js" "\$@"
-EOF
-
-# Create ~/.local/bin if it doesn't exist
-mkdir -p "$HOME/.local/bin"
-chmod +x "$HOME/.local/bin/claude-code-clipboard"
-
-# Add to PATH if not already there
-if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    echo "Adding ~/.local/bin to PATH..."
-    if [[ "$SHELL_TYPE" == "zsh" ]]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc"
-    elif [[ "$SHELL_TYPE" == "bash" ]]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+if [ -n "$SHELL_RC" ]; then
+    if [ -f "$SHELL_RC" ]; then
+        if ! grep -q "klipdot" "$SHELL_RC"; then
+            echo "" >> "$SHELL_RC"
+            echo "# KlipDot Integration" >> "$SHELL_RC"
+            echo "$HOOK_LINE" >> "$SHELL_RC"
+            echo "✅ Added klipdot integration to $SHELL_RC"
+        else
+            echo "✅ KlipDot integration already exists in $SHELL_RC"
+        fi
+    else
+        echo "⚠️  $SHELL_RC not found, creating with klipdot integration"
+        echo "# KlipDot Integration" > "$SHELL_RC"
+        echo "$HOOK_LINE" >> "$SHELL_RC"
     fi
+fi
+
+# Verify installation
+echo "🔍 Verifying installation..."
+if command -v klipdot > /dev/null 2>&1; then
+    echo "✅ klipdot is available in PATH"
+    echo "Version: $(klipdot --version)"
+else
+    echo "⚠️  klipdot not found in PATH. You may need to:"
+    echo "   1. Restart your shell"
+    echo "   2. Add $INSTALL_DIR to your PATH"
 fi
 
 echo ""
-echo "✅ Installation complete!"
+echo "🎉 Installation complete!"
 echo ""
 echo "📋 Next steps:"
-echo "1. Restart your terminal or run: source ~/.${SHELL_TYPE}rc"
-echo "2. Start the service: $CLAUDE_CODE_DIR/service.sh start"
-echo "3. Check status: claude-code-clipboard status"
+echo "   1. Restart your shell or run: source $SHELL_RC"
+echo "   2. Start klipdot: klipdot start"
+echo "   3. Check status: klipdot status"
 echo ""
-echo "📁 Files installed in: $CLAUDE_CODE_DIR"
-echo "🔗 Shell hooks installed for: $SHELL_TYPE"
-echo "🛠️  Service script: $CLAUDE_CODE_DIR/service.sh"
-echo ""
-echo "🚀 The clipboard handler will now intercept ALL image interactions:"
-echo "   • Clipboard pastes"
-echo "   • File operations (cp, mv, scp)"
-echo "   • Drag and drop"
-echo "   • STDIN image data"
-echo "   • Directory monitoring"
-echo ""
-echo "All images will be stored in: $CLAUDE_CODE_DIR/clipboard-screenshots/"
-echo "And replaced with file paths for Claude-Code integration."
+echo "📚 Common commands:"
+echo "   klipdot start     # Start the service"
+echo "   klipdot status    # Check status"
+echo "   klipdot config    # Show configuration"
+echo "   klipdot cleanup   # Clean old screenshots"
+echo "   klipdot --help    # Show help"
