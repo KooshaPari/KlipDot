@@ -213,18 +213,74 @@ impl ClipboardMonitor {
     
     #[cfg(target_os = "linux")]
     async fn get_clipboard_content(&self) -> Result<Option<String>> {
+        let available_tools = self.config.get_available_clipboard_tools();
+        
+        if available_tools.is_empty() {
+            return Err(Error::Clipboard("No clipboard tools available".to_string()));
+        }
+        
+        // Try each available tool
+        for tool in &available_tools {
+            if let Ok(content) = self.get_clipboard_with_tool(tool).await {
+                return Ok(content);
+            }
+        }
+        
+        Ok(None)
+    }
+    
+    #[cfg(target_os = "linux")]
+    async fn get_clipboard_with_tool(&self, tool: &str) -> Result<Option<String>> {
         use std::process::Command;
         
-        let output = Command::new("xclip")
-            .arg("-selection")
-            .arg("clipboard")
-            .arg("-o")
-            .output()
-            .map_err(|e| Error::Clipboard(format!("Failed to run xclip: {}", e)))?;
+        let output = match tool {
+            "wl-paste" => {
+                // Try text first
+                let mut cmd = Command::new("wl-paste");
+                cmd.arg("--type").arg("text/plain");
+                let text_output = cmd.output().map_err(|e| Error::Clipboard(format!("Failed to run wl-paste: {}", e)))?;
+                
+                if text_output.status.success() {
+                    let content = String::from_utf8_lossy(&text_output.stdout);
+                    if !content.is_empty() {
+                        return Ok(Some(content.to_string()));
+                    }
+                }
+                
+                // Try image data
+                let mut cmd = Command::new("wl-paste");
+                cmd.arg("--type").arg("image/png");
+                cmd.output().map_err(|e| Error::Clipboard(format!("Failed to run wl-paste for image: {}", e)))?
+            }
+            "xclip" => {
+                Command::new("xclip")
+                    .arg("-selection")
+                    .arg("clipboard")
+                    .arg("-o")
+                    .output()
+                    .map_err(|e| Error::Clipboard(format!("Failed to run xclip: {}", e)))?
+            }
+            "xsel" => {
+                Command::new("xsel")
+                    .arg("--clipboard")
+                    .arg("--output")
+                    .output()
+                    .map_err(|e| Error::Clipboard(format!("Failed to run xsel: {}", e)))?
+            }
+            _ => {
+                return Err(Error::Clipboard(format!("Unsupported clipboard tool: {}", tool)));
+            }
+        };
         
         if output.status.success() {
             let content = String::from_utf8_lossy(&output.stdout);
             if !content.is_empty() {
+                // For image data, encode as base64
+                if tool == "wl-paste" && !content.starts_with("data:") && !content.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace()) {
+                    // This might be binary image data
+                    let base64_content = base64::encode(output.stdout);
+                    return Ok(Some(base64_content));
+                }
                 return Ok(Some(content.to_string()));
             }
         }
@@ -234,26 +290,67 @@ impl ClipboardMonitor {
     
     #[cfg(target_os = "linux")]
     async fn set_clipboard_content(&self, content: &str) -> Result<()> {
+        let available_tools = self.config.get_available_clipboard_tools();
+        
+        if available_tools.is_empty() {
+            return Err(Error::Clipboard("No clipboard tools available".to_string()));
+        }
+        
+        // Try each available tool
+        for tool in &available_tools {
+            if let Ok(()) = self.set_clipboard_with_tool(tool, content).await {
+                return Ok(());
+            }
+        }
+        
+        Err(Error::Clipboard("Failed to set clipboard content with any available tool".to_string()))
+    }
+    
+    #[cfg(target_os = "linux")]
+    async fn set_clipboard_with_tool(&self, tool: &str, content: &str) -> Result<()> {
         use std::process::{Command, Stdio};
         use std::io::Write;
         
-        let mut child = Command::new("xclip")
-            .arg("-selection")
-            .arg("clipboard")
-            .stdin(Stdio::piped())
-            .spawn()
-            .map_err(|e| Error::Clipboard(format!("Failed to start xclip: {}", e)))?;
+        let mut child = match tool {
+            "wl-copy" => {
+                Command::new("wl-copy")
+                    .arg("--type")
+                    .arg("text/plain")
+                    .stdin(Stdio::piped())
+                    .spawn()
+                    .map_err(|e| Error::Clipboard(format!("Failed to start wl-copy: {}", e)))?
+            }
+            "xclip" => {
+                Command::new("xclip")
+                    .arg("-selection")
+                    .arg("clipboard")
+                    .stdin(Stdio::piped())
+                    .spawn()
+                    .map_err(|e| Error::Clipboard(format!("Failed to start xclip: {}", e)))?
+            }
+            "xsel" => {
+                Command::new("xsel")
+                    .arg("--clipboard")
+                    .arg("--input")
+                    .stdin(Stdio::piped())
+                    .spawn()
+                    .map_err(|e| Error::Clipboard(format!("Failed to start xsel: {}", e)))?
+            }
+            _ => {
+                return Err(Error::Clipboard(format!("Unsupported clipboard tool: {}", tool)));
+            }
+        };
         
         if let Some(stdin) = child.stdin.as_mut() {
             stdin.write_all(content.as_bytes())
-                .map_err(|e| Error::Clipboard(format!("Failed to write to xclip: {}", e)))?;
+                .map_err(|e| Error::Clipboard(format!("Failed to write to {}: {}", tool, e)))?;
         }
         
         let status = child.wait()
-            .map_err(|e| Error::Clipboard(format!("Failed to wait for xclip: {}", e)))?;
+            .map_err(|e| Error::Clipboard(format!("Failed to wait for {}: {}", tool, e)))?;
         
         if !status.success() {
-            return Err(Error::Clipboard("xclip failed".to_string()));
+            return Err(Error::Clipboard(format!("{} failed", tool)));
         }
         
         Ok(())
@@ -341,8 +438,8 @@ mod tests {
         assert!(monitor.is_ok());
     }
     
-    #[test]
-    fn test_image_signature_detection() {
+    #[tokio::test]
+    async fn test_image_signature_detection() {
         let config = Config::default();
         let processor = ImageProcessor::new(config).await.unwrap();
         let monitor = ClipboardMonitor {
@@ -356,8 +453,8 @@ mod tests {
         let png_data = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
         assert!(monitor.has_image_signature(&png_data));
         
-        // JPEG signature
-        let jpeg_data = vec![0xFF, 0xD8, 0xFF, 0xE0];
+        // JPEG signature (fixed - need proper JPEG header)
+        let jpeg_data = vec![0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46];
         assert!(monitor.has_image_signature(&jpeg_data));
         
         // Not an image
@@ -365,8 +462,8 @@ mod tests {
         assert!(!monitor.has_image_signature(text_data));
     }
     
-    #[test]
-    fn test_data_url_detection() {
+    #[tokio::test]
+    async fn test_data_url_detection() {
         let config = Config::default();
         let processor = ImageProcessor::new(config).await.unwrap();
         let monitor = ClipboardMonitor {

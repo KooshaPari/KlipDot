@@ -80,6 +80,42 @@ pub const IMAGE_PROCESS_NAMES: &[&str] = &[
     "imagemagick",
     "gimp",
     "inkscape",
+    // Wayland-specific screenshot tools
+    "grim",
+    "slurp",
+    "wayshot",
+    "grimshot",
+    "spectacle",
+    "flameshot",
+];
+
+/// Wayland screenshot tools
+pub const WAYLAND_SCREENSHOT_TOOLS: &[&str] = &[
+    "grim",
+    "wayshot", 
+    "grimshot",
+    "spectacle",
+    "flameshot",
+];
+
+/// X11 screenshot tools
+pub const X11_SCREENSHOT_TOOLS: &[&str] = &[
+    "scrot",
+    "gnome-screenshot",
+    "import",
+    "xfce4-screenshooter",
+];
+
+/// Wayland clipboard tools
+pub const WAYLAND_CLIPBOARD_TOOLS: &[&str] = &[
+    "wl-copy",
+    "wl-paste",
+];
+
+/// X11 clipboard tools  
+pub const X11_CLIPBOARD_TOOLS: &[&str] = &[
+    "xclip",
+    "xsel",
 ];
 
 /// Initialize tracing for the application
@@ -176,6 +212,141 @@ pub fn format_duration(duration: std::time::Duration) -> String {
     }
 }
 
+/// Display server types
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DisplayServer {
+    X11,
+    Wayland,
+    Unknown,
+}
+
+/// Detect the current display server
+pub fn detect_display_server() -> DisplayServer {
+    // Check for Wayland first
+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        return DisplayServer::Wayland;
+    }
+    
+    // Check XDG_SESSION_TYPE
+    if let Ok(session_type) = std::env::var("XDG_SESSION_TYPE") {
+        match session_type.to_lowercase().as_str() {
+            "wayland" => return DisplayServer::Wayland,
+            "x11" => return DisplayServer::X11,
+            _ => {}
+        }
+    }
+    
+    // Check for DISPLAY variable (X11)
+    if std::env::var("DISPLAY").is_ok() {
+        return DisplayServer::X11;
+    }
+    
+    DisplayServer::Unknown
+}
+
+/// Detect the current Wayland compositor
+pub fn detect_wayland_compositor() -> Option<String> {
+    // Check XDG_CURRENT_DESKTOP
+    if let Ok(desktop) = std::env::var("XDG_CURRENT_DESKTOP") {
+        let desktop_lower = desktop.to_lowercase();
+        if desktop_lower.contains("gnome") {
+            return Some("gnome".to_string());
+        } else if desktop_lower.contains("kde") {
+            return Some("kde".to_string());
+        } else if desktop_lower.contains("sway") {
+            return Some("sway".to_string());
+        } else if desktop_lower.contains("hyprland") {
+            return Some("hyprland".to_string());
+        }
+    }
+    
+    // Check for compositor-specific environment variables
+    if std::env::var("SWAYSOCK").is_ok() {
+        return Some("sway".to_string());
+    }
+    
+    if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
+        return Some("hyprland".to_string());
+    }
+    
+    None
+}
+
+/// Check if a command is available in PATH
+pub fn is_command_available(command: &str) -> bool {
+    which::which(command).is_ok()
+}
+
+/// Get available clipboard tools for the current display server
+pub fn get_available_clipboard_tools() -> Vec<String> {
+    let mut tools = Vec::new();
+    
+    match detect_display_server() {
+        DisplayServer::Wayland => {
+            for tool in WAYLAND_CLIPBOARD_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+            // Fallback to X11 tools if available
+            for tool in X11_CLIPBOARD_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+        DisplayServer::X11 => {
+            for tool in X11_CLIPBOARD_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+        DisplayServer::Unknown => {
+            // Try all tools
+            for tool in WAYLAND_CLIPBOARD_TOOLS.iter().chain(X11_CLIPBOARD_TOOLS.iter()) {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+    }
+    
+    tools
+}
+
+/// Get available screenshot tools for the current display server
+pub fn get_available_screenshot_tools() -> Vec<String> {
+    let mut tools = Vec::new();
+    
+    match detect_display_server() {
+        DisplayServer::Wayland => {
+            for tool in WAYLAND_SCREENSHOT_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+        DisplayServer::X11 => {
+            for tool in X11_SCREENSHOT_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+        DisplayServer::Unknown => {
+            // Try all tools
+            for tool in WAYLAND_SCREENSHOT_TOOLS.iter().chain(X11_SCREENSHOT_TOOLS.iter()) {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
+    }
+    
+    tools
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,5 +381,34 @@ mod tests {
         assert_eq!(format_duration(std::time::Duration::from_secs(30)), "30s");
         assert_eq!(format_duration(std::time::Duration::from_secs(90)), "1m 30s");
         assert_eq!(format_duration(std::time::Duration::from_secs(3665)), "1h 1m 5s");
+    }
+    
+    #[test]
+    fn test_display_server_detection() {
+        // Test that detection returns a valid enum value
+        let server = detect_display_server();
+        assert!(matches!(server, DisplayServer::X11 | DisplayServer::Wayland | DisplayServer::Unknown));
+    }
+    
+    #[test]
+    fn test_wayland_compositor_detection() {
+        // Test that compositor detection returns an option
+        let compositor = detect_wayland_compositor();
+        // This test depends on the environment, so we just check it's valid
+        if let Some(comp) = compositor {
+            assert!(!comp.is_empty());
+        }
+    }
+    
+    #[test]
+    fn test_available_tools() {
+        // Test that we can get available tools without panicking
+        let clipboard_tools = get_available_clipboard_tools();
+        let screenshot_tools = get_available_screenshot_tools();
+        
+        // The actual tools depend on the system, so we just check the calls work
+        // Note: We can't assert specific tools exist, as they depend on the system
+        let _clipboard_count = clipboard_tools.len();
+        let _screenshot_count = screenshot_tools.len();
     }
 }

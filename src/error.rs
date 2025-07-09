@@ -62,6 +62,15 @@ pub enum Error {
     #[error("Format error: {0}")]
     Format(String),
     
+    #[error("Wayland error: {0}")]
+    Wayland(String),
+    
+    #[error("Display server error: {0}")]
+    DisplayServer(String),
+    
+    #[error("Compositor error: {0}")]
+    Compositor(String),
+    
     #[error("Cancelled")]
     Cancelled,
     
@@ -79,6 +88,8 @@ impl Error {
             Error::Network(_) => true,
             Error::Timeout(_) => true,
             Error::Process(_) => true,
+            Error::Wayland(_) => true,
+            Error::DisplayServer(_) => true,
             Error::Cancelled => true,
             _ => false,
         }
@@ -90,6 +101,7 @@ impl Error {
             Error::Permission(_) => true,
             Error::Unsupported(_) => true,
             Error::Internal(_) => true,
+            Error::Compositor(_) => true,
             _ => false,
         }
     }
@@ -116,9 +128,42 @@ impl Error {
             Error::Internal(_) => "INTERNAL",
             Error::Parse(_) => "PARSE",
             Error::Format(_) => "FORMAT",
+            Error::Wayland(_) => "WAYLAND",
+            Error::DisplayServer(_) => "DISPLAY_SERVER",
+            Error::Compositor(_) => "COMPOSITOR",
             Error::Cancelled => "CANCELLED",
             Error::Unknown(_) => "UNKNOWN",
         }
+    }
+    
+    /// Create a Wayland-specific error
+    pub fn wayland<T: ToString>(msg: T) -> Self {
+        Error::Wayland(msg.to_string())
+    }
+    
+    /// Create a display server error
+    pub fn display_server<T: ToString>(msg: T) -> Self {
+        Error::DisplayServer(msg.to_string())
+    }
+    
+    /// Create a compositor error
+    pub fn compositor<T: ToString>(msg: T) -> Self {
+        Error::Compositor(msg.to_string())
+    }
+    
+    /// Create a clipboard error with context about the display server
+    pub fn clipboard_with_context<T: ToString>(msg: T, display_server: crate::DisplayServer) -> Self {
+        let context = match display_server {
+            crate::DisplayServer::Wayland => "Wayland",
+            crate::DisplayServer::X11 => "X11",
+            crate::DisplayServer::Unknown => "Unknown",
+        };
+        Error::Clipboard(format!("{} ({})", msg.to_string(), context))
+    }
+    
+    /// Check if this error is related to Wayland
+    pub fn is_wayland_related(&self) -> bool {
+        matches!(self, Error::Wayland(_) | Error::DisplayServer(_) | Error::Compositor(_))
     }
 }
 

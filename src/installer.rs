@@ -1,4 +1,4 @@
-use crate::{error::Result, Error};
+use crate::error::Result;
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
 

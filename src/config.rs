@@ -19,6 +19,7 @@ pub struct Config {
     pub log_level: String,
     pub intercept_methods: InterceptMethods,
     pub shell_integration: ShellIntegration,
+    pub display_server: DisplayServerConfig,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -39,6 +40,31 @@ pub struct ShellIntegration {
     pub shells: Vec<String>,
     pub hook_commands: Vec<String>,
     pub aliases: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisplayServerConfig {
+    pub auto_detect: bool,
+    pub preferred_server: Option<String>, // "wayland", "x11", or None for auto
+    pub wayland_compositor: Option<String>,
+    pub clipboard_tools: ClipboardToolsConfig,
+    pub screenshot_tools: ScreenshotToolsConfig,
+    pub fallback_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClipboardToolsConfig {
+    pub wayland_tools: Vec<String>,
+    pub x11_tools: Vec<String>,
+    pub preferred_tool: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScreenshotToolsConfig {
+    pub wayland_tools: Vec<String>,
+    pub x11_tools: Vec<String>,
+    pub preferred_tool: Option<String>,
+    pub default_args: std::collections::HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +99,7 @@ impl Default for Config {
             log_level: "info".to_string(),
             intercept_methods: InterceptMethods::default(),
             shell_integration: ShellIntegration::default(),
+            display_server: DisplayServerConfig::default(),
             created_at: now,
             updated_at: now,
         }
@@ -108,6 +135,55 @@ impl Default for ShellIntegration {
                 "mv".to_string(),
                 "scp".to_string(),
             ],
+        }
+    }
+}
+
+impl Default for DisplayServerConfig {
+    fn default() -> Self {
+        Self {
+            auto_detect: true,
+            preferred_server: None,
+            wayland_compositor: None,
+            clipboard_tools: ClipboardToolsConfig::default(),
+            screenshot_tools: ScreenshotToolsConfig::default(),
+            fallback_enabled: true,
+        }
+    }
+}
+
+impl Default for ClipboardToolsConfig {
+    fn default() -> Self {
+        Self {
+            wayland_tools: crate::WAYLAND_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect(),
+            x11_tools: crate::X11_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect(),
+            preferred_tool: Some("wl-copy".to_string()),
+        }
+    }
+}
+
+impl Default for ScreenshotToolsConfig {
+    fn default() -> Self {
+        let mut default_args = std::collections::HashMap::new();
+        
+        // Wayland tools
+        default_args.insert("grim".to_string(), vec!["-".to_string()]);
+        default_args.insert("wayshot".to_string(), vec!["--stdout".to_string()]);
+        default_args.insert("grimshot".to_string(), vec!["copy".to_string(), "screen".to_string()]);
+        default_args.insert("spectacle".to_string(), vec!["-b".to_string(), "-n".to_string()]);
+        default_args.insert("flameshot".to_string(), vec!["gui".to_string()]);
+        
+        // X11 tools
+        default_args.insert("scrot".to_string(), vec!["-".to_string()]);
+        default_args.insert("gnome-screenshot".to_string(), vec!["-f".to_string(), "-".to_string()]);
+        default_args.insert("import".to_string(), vec!["-window".to_string(), "root".to_string(), "-".to_string()]);
+        default_args.insert("xfce4-screenshooter".to_string(), vec!["-f".to_string(), "-s".to_string()]);
+        
+        Self {
+            wayland_tools: crate::WAYLAND_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect(),
+            x11_tools: crate::X11_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect(),
+            preferred_tool: Some("grim".to_string()),
+            default_args
         }
     }
 }
@@ -339,6 +415,133 @@ impl Config {
             "trace" => tracing::Level::TRACE,
             _ => tracing::Level::INFO,
         }
+    }
+    
+    pub fn get_display_server(&self) -> crate::DisplayServer {
+        if self.display_server.auto_detect {
+            crate::detect_display_server()
+        } else if let Some(ref preferred) = self.display_server.preferred_server {
+            match preferred.to_lowercase().as_str() {
+                "wayland" => crate::DisplayServer::Wayland,
+                "x11" => crate::DisplayServer::X11,
+                _ => crate::DisplayServer::Unknown,
+            }
+        } else {
+            crate::detect_display_server()
+        }
+    }
+    
+    pub fn get_wayland_compositor(&self) -> Option<String> {
+        if let Some(ref compositor) = self.display_server.wayland_compositor {
+            Some(compositor.clone())
+        } else {
+            crate::detect_wayland_compositor()
+        }
+    }
+    
+    pub fn get_available_clipboard_tools(&self) -> Vec<String> {
+        let mut tools = Vec::new();
+        
+        // Check preferred tool first
+        if let Some(ref preferred) = self.display_server.clipboard_tools.preferred_tool {
+            if crate::is_command_available(preferred) {
+                tools.push(preferred.clone());
+                return tools;
+            }
+        }
+        
+        // Get tools based on display server
+        match self.get_display_server() {
+            crate::DisplayServer::Wayland => {
+                for tool in &self.display_server.clipboard_tools.wayland_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+                // Fallback to X11 if enabled
+                if self.display_server.fallback_enabled {
+                    for tool in &self.display_server.clipboard_tools.x11_tools {
+                        if crate::is_command_available(tool) {
+                            tools.push(tool.clone());
+                        }
+                    }
+                }
+            }
+            crate::DisplayServer::X11 => {
+                for tool in &self.display_server.clipboard_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+            crate::DisplayServer::Unknown => {
+                // Try both
+                for tool in &self.display_server.clipboard_tools.wayland_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+                for tool in &self.display_server.clipboard_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+        }
+        
+        tools
+    }
+    
+    pub fn get_available_screenshot_tools(&self) -> Vec<String> {
+        let mut tools = Vec::new();
+        
+        // Check preferred tool first
+        if let Some(ref preferred) = self.display_server.screenshot_tools.preferred_tool {
+            if crate::is_command_available(preferred) {
+                tools.push(preferred.clone());
+                return tools;
+            }
+        }
+        
+        // Get tools based on display server
+        match self.get_display_server() {
+            crate::DisplayServer::Wayland => {
+                for tool in &self.display_server.screenshot_tools.wayland_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+            crate::DisplayServer::X11 => {
+                for tool in &self.display_server.screenshot_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+            crate::DisplayServer::Unknown => {
+                // Try both
+                for tool in &self.display_server.screenshot_tools.wayland_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+                for tool in &self.display_server.screenshot_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+        }
+        
+        tools
+    }
+    
+    pub fn get_screenshot_tool_args(&self, tool: &str) -> Vec<String> {
+        self.display_server.screenshot_tools.default_args
+            .get(tool)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 

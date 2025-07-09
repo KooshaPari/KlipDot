@@ -4,7 +4,7 @@ use std::process::Stdio;
 use std::time::{Duration, SystemTime};
 use tokio::process::Command;
 use tokio::time::sleep;
-use tracing::{debug, info, warn, error};
+use tracing::{info, warn};
 
 pub struct ServiceManager {
     pid_file: PathBuf,

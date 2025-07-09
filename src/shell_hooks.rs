@@ -2,7 +2,7 @@ use crate::{error::Result, Error};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use regex::Regex;
-use tracing::{debug, info};
+use tracing::debug;
 
 pub struct ShellHookManager {
     patterns: Vec<Regex>,

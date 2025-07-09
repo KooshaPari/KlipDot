@@ -215,8 +215,8 @@ mod tests {
         assert!(output_path.to_string_lossy().contains("test"));
     }
     
-    #[test]
-    fn test_image_format_detection() {
+    #[tokio::test]
+    async fn test_image_format_detection() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config::default();
         config.screenshot_dir = temp_dir.path().to_path_buf();
@@ -230,8 +230,8 @@ mod tests {
         assert!(!processor.is_supported_format(invalid_data));
     }
     
-    #[test]
-    fn test_image_info() {
+    #[tokio::test]
+    async fn test_image_info() {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config::default();
         config.screenshot_dir = temp_dir.path().to_path_buf();
@@ -269,7 +269,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let mut config = Config::default();
         config.screenshot_dir = temp_dir.path().to_path_buf();
-        config.max_file_size = 100; // Very small limit
+        config.max_file_size = 10; // Very small limit - smaller than any image
         
         let processor = ImageProcessor::new(config).await.unwrap();
         let image_data = create_test_image_data();
