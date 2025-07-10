@@ -2,6 +2,18 @@
 
 A high-performance, universal terminal image interceptor that automatically captures, processes, and replaces image interactions with file paths across all CLI/TUI applications. Built with Rust for maximum performance and reliability.
 
+## Demonstrations
+
+See KlipDot in action with our VHS-generated demonstrations:
+
+| Demo | Description | GIF |
+|------|-------------|-----|
+| **Basic Preview** | Core image preview functionality | ![Basic Preview](demos/basic-preview.gif) |
+| **TUI Integration** | Enhanced TUI application monitoring | ![TUI Integration](demos/tui-integration.gif) |
+| **Live Preview** | LSP-style real-time image detection | ![Live Preview](demos/live-preview.gif) |
+
+📁 **[View all demonstrations →](demos/)**
+
 ## Features
 
 - **🎯 Universal Compatibility**: Works with any CLI/TUI application, terminal emulator, or shell
