@@ -134,8 +134,9 @@ klipdot_preview_widget() {
 # Register the widget
 zle -N klipdot_preview_widget
 
-# Bind Ctrl+P for manual preview
-bindkey '^P' klipdot_preview_widget
+# Bind Ctrl+Shift+I (or Alt+I if Ctrl+Shift not available) for manual preview
+# Using ^[i for Alt+I which is more universally available
+bindkey '^[i' klipdot_preview_widget
 
 # Hook into command execution to detect pasted image paths
 klipdot_preexec_hook() {
@@ -276,6 +277,30 @@ klipdot_monitor() {
     $cmd 2>&1 | klipdot monitor-output
 }
 
+# Run TUI applications with image monitoring
+klipdot_tui() {
+    local cmd="$@"
+    echo "🖼️  Running TUI with image monitoring: $cmd"
+    klipdot tui $cmd
+}
+
+# Enhanced versions of common TUI apps
+klipdot_vim() {
+    klipdot_tui vim "$@"
+}
+
+klipdot_nvim() {
+    klipdot_tui nvim "$@"
+}
+
+klipdot_ranger() {
+    klipdot_tui ranger "$@"
+}
+
+klipdot_lf() {
+    klipdot_tui lf "$@"
+}
+
 # Enhanced ls command that shows image previews
 klipdot_ls() {
     local preview_mode=false
@@ -315,6 +340,11 @@ alias recent='klipdot_preview_recent'
 alias imgls='klipdot_ls_preview'
 alias editlive='klipdot_edit_with_preview'
 alias monitor='klipdot_monitor'
+alias tuiimg='klipdot_tui'
+alias vimimg='klipdot_vim'
+alias nvimimg='klipdot_nvim'
+alias rangerimg='klipdot_ranger'
+alias lfimg='klipdot_lf'
 
 # Help function
 klipdot_preview_help() {
@@ -322,7 +352,7 @@ klipdot_preview_help() {
 🖼️  KlipDot ZSH Image Preview Integration
 
 Key Bindings:
-  Ctrl+P          - Preview image at cursor or in command line
+  Alt+I           - Preview image at cursor or in command line
 
 Commands:
   previewimg FILE - Preview an image file
@@ -332,6 +362,9 @@ Commands:
   catimg FILE     - cat that previews images and detects paths in output
   editlive FILE   - Edit with LSP-style live preview
   monitor COMMAND - Monitor any command output for image paths
+  tuiimg COMMAND  - Run TUI apps with enhanced image monitoring
+  vimimg/nvimimg  - Vim/Neovim with image detection
+  rangerimg/lfimg - File managers with enhanced previews
 
 Auto-detection:
   • Automatically detects image paths in command line

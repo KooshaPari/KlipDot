@@ -85,6 +85,12 @@ enum Commands {
         #[arg(long)]
         auto_preview: bool,
     },
+    /// Run a TUI application with image monitoring
+    Tui {
+        /// TUI application to run with monitoring
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -161,6 +167,9 @@ async fn main() -> Result<()> {
         }
         Commands::LivePreview { auto_preview } => {
             handle_live_preview_command(&config, auto_preview).await?;
+        }
+        Commands::Tui { command } => {
+            handle_tui_command(&config, command).await?;
         }
     }
     
@@ -395,6 +404,23 @@ async fn handle_live_preview_command(config: &Config, auto_preview: bool) -> Res
         
         println!("Input: {}", line);
     }
+    
+    Ok(())
+}
+
+async fn handle_tui_command(config: &Config, command: Vec<String>) -> Result<()> {
+    if command.is_empty() {
+        return Err(anyhow::anyhow!("No TUI command provided"));
+    }
+    
+    info!("Running TUI application with image monitoring: {:?}", command);
+    
+    let monitor = StdoutMonitor::new(config.clone()).await
+        .map_err(|e| anyhow::anyhow!("Failed to create stdout monitor: {}", e))?;
+    
+    // Run the TUI with monitoring
+    monitor.monitor_command(command).await
+        .map_err(|e| anyhow::anyhow!("Failed to monitor TUI command: {}", e))?;
     
     Ok(())
 }
