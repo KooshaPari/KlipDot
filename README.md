@@ -4,22 +4,50 @@ A high-performance, universal terminal image interceptor that automatically capt
 
 ## Demonstrations
 
-See KlipDot in action with our VHS-generated demonstrations:
+See KlipDot in action with real functionality demonstrations:
 
 <div align="center">
 
-### 🖼️ Basic Preview Functionality
-<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/basic-preview.gif" width="800" alt="KlipDot Basic Preview Demo">
+### 🖼️ Terminal Image Preview (chafa + timg)
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/terminal-preview.gif" width="800" alt="KlipDot Terminal Image Preview">
 
-### 🔧 TUI Integration Features  
-<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/tui-integration.gif" width="800" alt="KlipDot TUI Integration Demo">
+### 🔧 Working Features Overview
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/working-features.gif" width="800" alt="KlipDot Working Features">
 
-### ⚡ Live Preview & LSP-style Detection
-<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/live-preview.gif" width="800" alt="KlipDot Live Preview Demo">
+### ⚡ Real Preview System
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/real-preview.gif" width="800" alt="KlipDot Real Preview Demo">
+
+### 📋 Clipboard Workflow
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/clipboard-workflow.gif" width="800" alt="KlipDot Clipboard Workflow">
 
 </div>
 
 📁 **[View all demonstrations →](demos/)**
+
+## 🖥️ Terminal Image Display
+
+KlipDot supports multiple terminal image display methods:
+
+- **chafa**: High-quality ASCII art conversion
+- **timg**: Advanced terminal graphics with Sixel support  
+- **qlmanage**: macOS QuickLook integration
+- **Image info**: File dimensions, size, and metadata display
+
+### Quick Terminal Preview Example
+
+```bash
+# Load ZSH integration
+source ~/.klipdot/zsh-preview-integration.zsh
+
+# Quick preview any image
+klipdot_quick_preview ~/.klipdot/screenshots/demo.png
+
+# Output:
+# 📸 demo.png
+# 📏 Size: 462.9 KB  
+# 🖼️ Dimensions: 1216x1320
+# 📁 /Users/you/.klipdot/screenshots/demo.png
+```
 
 ## Features
 

@@ -4,11 +4,17 @@ This directory contains demonstration materials for KlipDot's features.
 
 ## Generated Demonstrations
 
-The following GIF demonstrations are included:
+The following GIF demonstrations showcase real KlipDot functionality:
 
-- **[basic-preview.gif](basic-preview.gif)** - Basic image preview functionality
-- **[tui-integration.gif](tui-integration.gif)** - TUI application integration
-- **[live-preview.gif](live-preview.gif)** - LSP-style live preview features
+- **[terminal-preview.gif](terminal-preview.gif)** - In-terminal image display using chafa and timg
+- **[working-features.gif](working-features.gif)** - Core features: status, screenshots, ZSH integration
+- **[real-preview.gif](real-preview.gif)** - Real image preview and information display
+- **[clipboard-workflow.gif](clipboard-workflow.gif)** - Complete clipboard interception workflow
+
+### Previous Demos (basic functionality)
+- **[basic-preview.gif](basic-preview.gif)** - Basic command demonstrations
+- **[tui-integration.gif](tui-integration.gif)** - TUI application integration concepts
+- **[live-preview.gif](live-preview.gif)** - LSP-style live preview concepts
 
 ## VHS Tape Files
 
