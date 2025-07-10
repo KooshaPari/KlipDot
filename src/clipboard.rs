@@ -28,21 +28,23 @@ impl ClipboardMonitor {
             return Ok(());
         }
         
-        info!("Starting clipboard monitor with {}ms interval", self.config.poll_interval);
+        // Use faster polling for better responsiveness to screenshots
+        let poll_interval = std::cmp::min(self.config.poll_interval, 250); // Max 250ms for good responsiveness
+        info!("Starting clipboard monitor with {}ms interval", poll_interval);
         self.running = true;
         
         while self.running {
             if let Err(e) = self.poll_clipboard().await {
                 if e.is_recoverable() {
                     warn!("Recoverable clipboard error: {}", e);
-                    sleep(Duration::from_millis(self.config.poll_interval * 2)).await;
+                    sleep(Duration::from_millis(poll_interval * 2)).await;
                 } else {
                     error!("Fatal clipboard error: {}", e);
                     return Err(e);
                 }
             }
             
-            sleep(Duration::from_millis(self.config.poll_interval)).await;
+            sleep(Duration::from_millis(poll_interval)).await;
         }
         
         Ok(())
@@ -67,11 +69,23 @@ impl ClipboardMonitor {
     }
     
     async fn handle_clipboard_change(&mut self, content: &str) -> Result<()> {
-        debug!("Clipboard content changed");
+        debug!("Clipboard content changed, length: {} bytes", content.len());
+        
+        // Log first few characters for debugging (safely handle Unicode)
+        let preview = if content.len() > 50 {
+            let safe_end = content.char_indices().nth(50).map(|(i, _)| i).unwrap_or(content.len());
+            format!("{}...", &content[..safe_end])
+        } else {
+            content.to_string()
+        };
+        debug!("Clipboard preview: {}", preview);
         
         // Check if content is image data
         if self.is_image_data(content) {
+            info!("Detected image data in clipboard, processing...");
             self.process_clipboard_image(content).await?;
+        } else {
+            debug!("Clipboard content is not image data");
         }
         
         Ok(())
@@ -97,37 +111,71 @@ impl ClipboardMonitor {
     }
     
     fn is_image_data(&self, content: &str) -> bool {
-        // Check for base64 image data
+        // Check for data URL format
         if content.starts_with("data:image/") {
             return true;
         }
         
-        // Check for binary image signatures
-        if let Ok(data) = base64::decode(content) {
-            return self.has_image_signature(&data);
+        // Check if content looks like base64 data (common for clipboard images)
+        if content.len() > 100 && content.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=') {
+            if let Ok(data) = base64::decode(content) {
+                if self.has_image_signature(&data) {
+                    debug!("Detected base64-encoded image data");
+                    return true;
+                }
+            }
+        }
+        
+        // Check for direct binary data (less common but possible)
+        if content.len() > 8 {
+            let bytes = content.as_bytes();
+            if self.has_image_signature(bytes) {
+                debug!("Detected binary image data");
+                return true;
+            }
         }
         
         false
     }
     
     fn has_image_signature(&self, data: &[u8]) -> bool {
-        if data.len() < 8 {
+        if data.len() < 4 {
             return false;
         }
         
-        // Check for common image signatures
-        let signatures = [
-            &[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], // PNG
-            &[0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46], // JPEG
-            &[0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00], // GIF
-            &[0x42, 0x4D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], // BMP
-            &[0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00], // WEBP
-        ];
+        // PNG signature
+        if data.len() >= 8 && data.starts_with(&[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) {
+            return true;
+        }
         
-        for sig in &signatures {
-            if data.starts_with(*sig) {
-                return true;
-            }
+        // JPEG signatures (multiple variants)
+        if data.len() >= 3 && data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+            return true;
+        }
+        
+        // GIF signatures
+        if data.len() >= 6 && (data.starts_with(b"GIF87a") || data.starts_with(b"GIF89a")) {
+            return true;
+        }
+        
+        // BMP signature
+        if data.len() >= 2 && data.starts_with(b"BM") {
+            return true;
+        }
+        
+        // WEBP signature
+        if data.len() >= 12 && data.starts_with(b"RIFF") && &data[8..12] == b"WEBP" {
+            return true;
+        }
+        
+        // TIFF signatures (big and little endian)
+        if data.len() >= 4 && (data.starts_with(&[0x49, 0x49, 0x2A, 0x00]) || data.starts_with(&[0x4D, 0x4D, 0x00, 0x2A])) {
+            return true;
+        }
+        
+        // ICO signature
+        if data.len() >= 4 && data.starts_with(&[0x00, 0x00, 0x01, 0x00]) {
+            return true;
         }
         
         false
@@ -154,7 +202,15 @@ impl ClipboardMonitor {
     async fn get_clipboard_content(&self) -> Result<Option<String>> {
         use std::process::Command;
         
-        // Try to get text content first
+        // First check if there's image data in clipboard (from Cmd+Shift+3/4/5)
+        if let Ok(image_data) = self.get_macos_clipboard_image().await {
+            if !image_data.is_empty() {
+                debug!("Found image data in clipboard: {} bytes", image_data.len());
+                return Ok(Some(base64::encode(&image_data)));
+            }
+        }
+        
+        // Try to get text content
         let output = Command::new("pbpaste")
             .output()
             .map_err(|e| Error::Clipboard(format!("Failed to run pbpaste: {}", e)))?;
@@ -166,24 +222,69 @@ impl ClipboardMonitor {
             }
         }
         
-        // Try to get image data
+        Ok(None)
+    }
+    
+    #[cfg(target_os = "macos")]
+    async fn get_macos_clipboard_image(&self) -> Result<Vec<u8>> {
+        use std::process::Command;
+        
+        // Method 1: Try to get PNG data using osascript
         let output = Command::new("osascript")
             .arg("-e")
-            .arg("the clipboard as «class PNGf»")
+            .arg(r#"
+                try
+                    set imageData to the clipboard as «class PNGf»
+                    return imageData
+                end try
+            "#)
             .output()
-            .map_err(|e| Error::Clipboard(format!("Failed to get image from clipboard: {}", e)))?;
+            .map_err(|e| Error::Clipboard(format!("Failed to get PNG from clipboard: {}", e)))?;
         
-        if output.status.success() {
-            let hex_data = String::from_utf8_lossy(&output.stdout);
-            if !hex_data.is_empty() {
-                // Convert hex to base64
-                if let Ok(binary_data) = hex::decode(hex_data.trim()) {
-                    return Ok(Some(base64::encode(&binary_data)));
+        if output.status.success() && !output.stdout.is_empty() {
+            let hex_string = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .replace("«data PNGf", "")
+                .replace("»", "")
+                .replace(" ", "");
+            
+            if let Ok(binary_data) = hex::decode(&hex_string) {
+                if self.has_image_signature(&binary_data) {
+                    debug!("Successfully extracted PNG from clipboard via osascript");
+                    return Ok(binary_data);
                 }
             }
         }
         
-        Ok(None)
+        // Method 2: Try using pngpaste if available
+        if crate::is_command_available("pngpaste") {
+            let output = Command::new("pngpaste")
+                .arg("-")
+                .output()
+                .map_err(|e| Error::Clipboard(format!("Failed to run pngpaste: {}", e)))?;
+            
+            if output.status.success() && !output.stdout.is_empty() {
+                debug!("Successfully extracted PNG from clipboard via pngpaste");
+                return Ok(output.stdout);
+            }
+        }
+        
+        // Method 3: Try using pbpaste with specific type
+        let output = Command::new("pbpaste")
+            .arg("-pboard")
+            .arg("general")
+            .output()
+            .map_err(|e| Error::Clipboard(format!("Failed to run pbpaste for image: {}", e)))?;
+        
+        if output.status.success() && !output.stdout.is_empty() {
+            // Check if this looks like binary image data
+            if self.has_image_signature(&output.stdout) {
+                debug!("Successfully extracted image from clipboard via pbpaste");
+                return Ok(output.stdout);
+            }
+        }
+        
+        Ok(Vec::new())
     }
     
     #[cfg(target_os = "macos")]

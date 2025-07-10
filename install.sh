@@ -63,43 +63,14 @@ mkdir -p "$KLIPDOT_DIR/logs"
 
 # Create default configuration
 echo "⚙️  Creating default configuration..."
-cat > "$KLIPDOT_DIR/config.json" << 'EOF'
-{
-  "enabled": true,
-  "autoStart": false,
-  "daemon": {
-    "enabled": false,
-    "pidFile": "~/.klipdot/klipdot.pid",
-    "logFile": "~/.klipdot/klipdot.log"
-  },
-  "interception": {
-    "clipboard": true,
-    "fileOperations": true,
-    "dragDrop": true,
-    "stdin": true,
-    "processMonitoring": true
-  },
-  "storage": {
-    "directory": "~/.klipdot/screenshots",
-    "maxFileSize": "10MB",
-    "compressionQuality": 90,
-    "retentionDays": 30,
-    "autoCleanup": true
-  },
-  "imageFormats": ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"],
-  "performance": {
-    "clipboardPollInterval": 1000,
-    "fileWatchInterval": 500,
-    "processPollInterval": 5000,
-    "maxConcurrentProcessing": 4
-  },
-  "security": {
-    "allowExternalAccess": false,
-    "restrictedPaths": [],
-    "maxImageSize": "50MB"
-  }
-}
-EOF
+# Let klipdot generate its own config to ensure compatibility
+if [ -f "$KLIPDOT_DIR/config.json" ]; then
+    echo "✅ Configuration already exists"
+else
+    # Create empty config - klipdot will generate defaults
+    echo '{}' > "$KLIPDOT_DIR/config.json"
+    echo "✅ Created default configuration"
+fi
 
 # Create shell integration files
 echo "🔧 Setting up shell integration..."

@@ -156,6 +156,7 @@ impl Error {
         let context = match display_server {
             crate::DisplayServer::Wayland => "Wayland",
             crate::DisplayServer::X11 => "X11",
+            crate::DisplayServer::MacOS => "macOS",
             crate::DisplayServer::Unknown => "Unknown",
         };
         Error::Clipboard(format!("{} ({})", msg.to_string(), context))

@@ -154,10 +154,24 @@ impl Default for DisplayServerConfig {
 
 impl Default for ClipboardToolsConfig {
     fn default() -> Self {
+        let mut wayland_tools = crate::WAYLAND_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut x11_tools = crate::X11_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        
+        // Add macOS tools to both lists for compatibility
+        #[cfg(target_os = "macos")]
+        {
+            wayland_tools.extend(crate::MACOS_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()));
+            x11_tools.extend(crate::MACOS_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()));
+        }
+        
         Self {
-            wayland_tools: crate::WAYLAND_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect(),
-            x11_tools: crate::X11_CLIPBOARD_TOOLS.iter().map(|s| s.to_string()).collect(),
-            preferred_tool: Some("wl-copy".to_string()),
+            wayland_tools,
+            x11_tools,
+            preferred_tool: Some(if cfg!(target_os = "macos") {
+                "pbcopy".to_string()
+            } else {
+                "wl-copy".to_string()
+            }),
         }
     }
 }
@@ -179,10 +193,28 @@ impl Default for ScreenshotToolsConfig {
         default_args.insert("import".to_string(), vec!["-window".to_string(), "root".to_string(), "-".to_string()]);
         default_args.insert("xfce4-screenshooter".to_string(), vec!["-f".to_string(), "-s".to_string()]);
         
+        // macOS tools
+        default_args.insert("screencapture".to_string(), vec!["-c".to_string()]);
+        default_args.insert("screenshot".to_string(), vec![]);
+        
+        let mut wayland_tools = crate::WAYLAND_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut x11_tools = crate::X11_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        
+        // Add macOS tools to both lists for compatibility
+        #[cfg(target_os = "macos")]
+        {
+            wayland_tools.extend(crate::MACOS_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()));
+            x11_tools.extend(crate::MACOS_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()));
+        }
+        
         Self {
-            wayland_tools: crate::WAYLAND_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect(),
-            x11_tools: crate::X11_SCREENSHOT_TOOLS.iter().map(|s| s.to_string()).collect(),
-            preferred_tool: Some("grim".to_string()),
+            wayland_tools,
+            x11_tools,
+            preferred_tool: Some(if cfg!(target_os = "macos") {
+                "screencapture".to_string()
+            } else {
+                "grim".to_string()
+            }),
             default_args
         }
     }
@@ -424,6 +456,7 @@ impl Config {
             match preferred.to_lowercase().as_str() {
                 "wayland" => crate::DisplayServer::Wayland,
                 "x11" => crate::DisplayServer::X11,
+                "macos" => crate::DisplayServer::MacOS,
                 _ => crate::DisplayServer::Unknown,
             }
         } else {
@@ -474,6 +507,14 @@ impl Config {
                     }
                 }
             }
+            crate::DisplayServer::MacOS => {
+                // On macOS, pbcopy/pbpaste are in both tool lists
+                for tool in &self.display_server.clipboard_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
             crate::DisplayServer::Unknown => {
                 // Try both
                 for tool in &self.display_server.clipboard_tools.wayland_tools {
@@ -513,6 +554,14 @@ impl Config {
                 }
             }
             crate::DisplayServer::X11 => {
+                for tool in &self.display_server.screenshot_tools.x11_tools {
+                    if crate::is_command_available(tool) {
+                        tools.push(tool.clone());
+                    }
+                }
+            }
+            crate::DisplayServer::MacOS => {
+                // On macOS, screencapture is in both tool lists
                 for tool in &self.display_server.screenshot_tools.x11_tools {
                     if crate::is_command_available(tool) {
                         tools.push(tool.clone());

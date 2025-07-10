@@ -106,6 +106,12 @@ pub const X11_SCREENSHOT_TOOLS: &[&str] = &[
     "xfce4-screenshooter",
 ];
 
+/// macOS screenshot tools
+pub const MACOS_SCREENSHOT_TOOLS: &[&str] = &[
+    "screencapture",
+    "screenshot",
+];
+
 /// Wayland clipboard tools
 pub const WAYLAND_CLIPBOARD_TOOLS: &[&str] = &[
     "wl-copy",
@@ -116,6 +122,12 @@ pub const WAYLAND_CLIPBOARD_TOOLS: &[&str] = &[
 pub const X11_CLIPBOARD_TOOLS: &[&str] = &[
     "xclip",
     "xsel",
+];
+
+/// macOS clipboard tools
+pub const MACOS_CLIPBOARD_TOOLS: &[&str] = &[
+    "pbcopy",
+    "pbpaste",
 ];
 
 /// Initialize tracing for the application
@@ -217,28 +229,38 @@ pub fn format_duration(duration: std::time::Duration) -> String {
 pub enum DisplayServer {
     X11,
     Wayland,
+    MacOS,
     Unknown,
 }
 
 /// Detect the current display server
 pub fn detect_display_server() -> DisplayServer {
+    // Check for macOS first
+    #[cfg(target_os = "macos")]
+    {
+        return DisplayServer::MacOS;
+    }
+    
     // Check for Wayland first
-    if std::env::var("WAYLAND_DISPLAY").is_ok() {
-        return DisplayServer::Wayland;
-    }
-    
-    // Check XDG_SESSION_TYPE
-    if let Ok(session_type) = std::env::var("XDG_SESSION_TYPE") {
-        match session_type.to_lowercase().as_str() {
-            "wayland" => return DisplayServer::Wayland,
-            "x11" => return DisplayServer::X11,
-            _ => {}
+    #[cfg(not(target_os = "macos"))]
+    {
+        if std::env::var("WAYLAND_DISPLAY").is_ok() {
+            return DisplayServer::Wayland;
         }
-    }
-    
-    // Check for DISPLAY variable (X11)
-    if std::env::var("DISPLAY").is_ok() {
-        return DisplayServer::X11;
+        
+        // Check XDG_SESSION_TYPE
+        if let Ok(session_type) = std::env::var("XDG_SESSION_TYPE") {
+            match session_type.to_lowercase().as_str() {
+                "wayland" => return DisplayServer::Wayland,
+                "x11" => return DisplayServer::X11,
+                _ => {}
+            }
+        }
+        
+        // Check for DISPLAY variable (X11)
+        if std::env::var("DISPLAY").is_ok() {
+            return DisplayServer::X11;
+        }
     }
     
     DisplayServer::Unknown
@@ -302,9 +324,16 @@ pub fn get_available_clipboard_tools() -> Vec<String> {
                 }
             }
         }
+        DisplayServer::MacOS => {
+            for tool in MACOS_CLIPBOARD_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
         DisplayServer::Unknown => {
             // Try all tools
-            for tool in WAYLAND_CLIPBOARD_TOOLS.iter().chain(X11_CLIPBOARD_TOOLS.iter()) {
+            for tool in WAYLAND_CLIPBOARD_TOOLS.iter().chain(X11_CLIPBOARD_TOOLS.iter()).chain(MACOS_CLIPBOARD_TOOLS.iter()) {
                 if is_command_available(tool) {
                     tools.push(tool.to_string());
                 }
@@ -334,9 +363,16 @@ pub fn get_available_screenshot_tools() -> Vec<String> {
                 }
             }
         }
+        DisplayServer::MacOS => {
+            for tool in MACOS_SCREENSHOT_TOOLS {
+                if is_command_available(tool) {
+                    tools.push(tool.to_string());
+                }
+            }
+        }
         DisplayServer::Unknown => {
             // Try all tools
-            for tool in WAYLAND_SCREENSHOT_TOOLS.iter().chain(X11_SCREENSHOT_TOOLS.iter()) {
+            for tool in WAYLAND_SCREENSHOT_TOOLS.iter().chain(X11_SCREENSHOT_TOOLS.iter()).chain(MACOS_SCREENSHOT_TOOLS.iter()) {
                 if is_command_available(tool) {
                     tools.push(tool.to_string());
                 }

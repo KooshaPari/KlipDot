@@ -13,7 +13,9 @@ pub struct TerminalInterceptor {
 
 #[derive(Debug, Clone)]
 struct ProcessMonitor {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     pid: Option<u32>,
     last_seen: std::time::SystemTime,
 }
@@ -85,10 +87,14 @@ impl TerminalInterceptor {
             crate::DisplayServer::X11 => {
                 self.monitor_x11_tools().await?;
             }
+            crate::DisplayServer::MacOS => {
+                self.monitor_macos_tools().await?;
+            }
             crate::DisplayServer::Unknown => {
                 // Try both
                 let _ = self.monitor_wayland_tools().await;
                 let _ = self.monitor_x11_tools().await;
+                let _ = self.monitor_macos_tools().await;
             }
         }
         
@@ -114,6 +120,19 @@ impl TerminalInterceptor {
                 let processes = self.get_processes_by_name(tool).await?;
                 for process in processes {
                     self.handle_x11_screenshot_process(&process).await?;
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn monitor_macos_tools(&mut self) -> Result<()> {
+        for tool in crate::MACOS_SCREENSHOT_TOOLS {
+            if crate::is_command_available(tool) {
+                let processes = self.get_processes_by_name(tool).await?;
+                for process in processes {
+                    self.handle_macos_screenshot_process(&process).await?;
                 }
             }
         }
@@ -161,6 +180,32 @@ impl TerminalInterceptor {
         for dir_opt in screenshot_dirs {
             if let Some(dir) = dir_opt {
                 self.scan_directory_for_new_images(&dir, "x11-screenshot").await?;
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn handle_macos_screenshot_process(&mut self, process: &Process) -> Result<()> {
+        info!("Detected macOS screenshot tool: {} (PID: {})", process.name, process.pid);
+        
+        // Wait for the process to complete
+        self.wait_for_process_completion(process.pid).await?;
+        
+        // Check clipboard for screenshot data (screencapture -c puts it in clipboard)
+        self.check_clipboard_after_screenshot().await?;
+        
+        // Look for recently created images in macOS screenshot directories
+        let screenshot_dirs = vec![
+            dirs::desktop_dir(),
+            dirs::download_dir(),
+            dirs::picture_dir(),
+            Some(std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/tmp")))
+        ];
+        
+        for dir_opt in screenshot_dirs {
+            if let Some(dir) = dir_opt {
+                self.scan_directory_for_new_images(&dir, "macos-screenshot").await?;
             }
         }
         
@@ -497,9 +542,15 @@ impl TerminalInterceptor {
             Some(std::env::current_dir().unwrap_or_else(|_| "/tmp".into())),
         ];
         
-        // Add Wayland-specific screenshot directories
-        if self.config.get_display_server() == crate::DisplayServer::Wayland {
-            self.add_wayland_screenshot_dirs(&mut scan_dirs).await?;
+        // Add platform-specific screenshot directories
+        match self.config.get_display_server() {
+            crate::DisplayServer::Wayland => {
+                self.add_wayland_screenshot_dirs(&mut scan_dirs).await?;
+            }
+            crate::DisplayServer::MacOS => {
+                self.add_macos_screenshot_dirs(&mut scan_dirs).await?;
+            }
+            _ => {}
         }
         
         for dir_option in &scan_dirs {
@@ -543,6 +594,25 @@ impl TerminalInterceptor {
         // Add XDG user directories
         if let Some(config_dir) = dirs::config_dir() {
             dirs.push(Some(config_dir.join("user-dirs.dirs")));
+        }
+        
+        Ok(())
+    }
+    
+    async fn add_macos_screenshot_dirs(&self, dirs: &mut Vec<Option<std::path::PathBuf>>) -> Result<()> {
+        // macOS default screenshot location is Desktop
+        if let Some(desktop_dir) = dirs::desktop_dir() {
+            dirs.push(Some(desktop_dir));
+        }
+        
+        // Also check Pictures directory
+        if let Some(pictures_dir) = dirs::picture_dir() {
+            dirs.push(Some(pictures_dir.join("Screenshots")));
+        }
+        
+        // Check ~/Documents for some apps
+        if let Some(documents_dir) = dirs::document_dir() {
+            dirs.push(Some(documents_dir.join("Screenshots")));
         }
         
         Ok(())
@@ -610,6 +680,7 @@ impl TerminalInterceptor {
 struct Process {
     pid: u32,
     name: String,
+    #[allow(dead_code)]
     command: String,
 }
 
