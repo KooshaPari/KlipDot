@@ -83,6 +83,10 @@ impl ImagePreviewManager {
             if term_program == "iTerm.app" {
                 return PreviewMethod::ITerm2;
             }
+            // Apple Terminal - use external viewer
+            if term_program == "Apple_Terminal" {
+                return PreviewMethod::External("qlmanage".to_string());
+            }
         }
         
         // 2. Check for Kitty
@@ -97,16 +101,30 @@ impl ImagePreviewManager {
             return PreviewMethod::Sixel;
         }
         
-        // 4. Check for external viewers
-        for viewer in &["imgcat", "catimg", "timg", "chafa"] {
+        // 4. Check for external viewers in order of preference
+        let viewers = [
+            "imgcat",     // iTerm2 utilities
+            "chafa",      // Modern ASCII art generator
+            "catimg",     // Popular image viewer
+            "timg",       // Terminal image viewer
+            "qlmanage",   // macOS built-in QuickLook
+            "open",       // macOS default opener
+        ];
+        
+        for viewer in &viewers {
             if crate::is_command_available(viewer) {
                 return PreviewMethod::External(viewer.to_string());
             }
         }
         
-        // 5. Fallback to ASCII
+        // 5. Fallback to ASCII if available
         if crate::is_command_available("jp2a") || crate::is_command_available("img2txt") {
             return PreviewMethod::ASCII;
+        }
+        
+        // 6. Last resort - use basic file info with macOS qlmanage if available
+        if cfg!(target_os = "macos") {
+            return PreviewMethod::External("qlmanage".to_string());
         }
         
         PreviewMethod::None
@@ -291,11 +309,35 @@ impl ImagePreviewManager {
                 cmd.arg(image_path);
             }
             "chafa" => {
-                // chafa tool
+                // chafa tool - modern ASCII art generator
                 if let Some(width) = max_width {
-                    cmd.arg("--size").arg(format!("{}x{}", width, max_height.unwrap_or(width)));
+                    cmd.arg("--size").arg(format!("{}x{}", width, max_height.unwrap_or(width/2)));
+                } else {
+                    cmd.arg("--size").arg("80x40");
                 }
+                cmd.arg("--format").arg("symbols");
                 cmd.arg(image_path);
+            }
+            "qlmanage" => {
+                // macOS QuickLook manager
+                cmd.arg("-p").arg(image_path);
+                
+                // Launch in background and show info immediately
+                println!("🖼️  Opening with QuickLook: {}", image_path.file_name().unwrap_or_default().to_string_lossy());
+                
+                // Spawn QuickLook in background and return immediately
+                let _ = cmd.spawn();
+                return Ok(());
+            }
+            "open" => {
+                // macOS default opener
+                cmd.arg(image_path);
+                
+                println!("🖼️  Opening with default app: {}", image_path.file_name().unwrap_or_default().to_string_lossy());
+                
+                // Spawn in background
+                let _ = cmd.spawn();
+                return Ok(());
             }
             _ => {
                 cmd.arg(image_path);
@@ -305,7 +347,10 @@ impl ImagePreviewManager {
         let output = cmd.output().await.map_err(|e| Error::Process(format!("Failed to run {}: {}", viewer, e)))?;
         
         if output.status.success() {
-            print!("{}", String::from_utf8_lossy(&output.stdout));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if !stdout.is_empty() {
+                print!("{}", stdout);
+            }
             Ok(())
         } else {
             Err(Error::Process(format!("{} preview failed: {}", viewer, String::from_utf8_lossy(&output.stderr))))
@@ -327,6 +372,12 @@ impl ImagePreviewManager {
             println!("🖼️  Dimensions: {}", dimensions);
         }
         println!("📁 Path: {}", image_path.display());
+        
+        // On macOS, offer to open with QuickLook
+        if cfg!(target_os = "macos") {
+            println!("💡 Tip: Run 'qlmanage -p \"{}\"' to preview with QuickLook", image_path.display());
+            println!("💡 Or: 'open \"{}\"' to open with default app", image_path.display());
+        }
         
         Ok(())
     }
