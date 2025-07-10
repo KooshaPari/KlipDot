@@ -1,0 +1,328 @@
+#!/bin/zsh
+
+# KlipDot ZSH Image Preview Integration
+# Provides hover preview and command line image detection
+
+# Configuration
+KLIPDOT_PREVIEW_ENABLED=${KLIPDOT_PREVIEW_ENABLED:-1}
+KLIPDOT_PREVIEW_WIDTH=${KLIPDOT_PREVIEW_WIDTH:-80}
+KLIPDOT_PREVIEW_HEIGHT=${KLIPDOT_PREVIEW_HEIGHT:-24}
+KLIPDOT_PREVIEW_DELAY=${KLIPDOT_PREVIEW_DELAY:-0.5}
+KLIPDOT_AUTO_PREVIEW=${KLIPDOT_AUTO_PREVIEW:-1}
+
+# Image file extensions to detect
+KLIPDOT_IMAGE_EXTENSIONS=(png jpg jpeg gif bmp webp svg tiff ico)
+
+# Check if KlipDot preview is available
+klipdot_preview_available() {
+    command -v klipdot >/dev/null 2>&1 && [[ $KLIPDOT_PREVIEW_ENABLED -eq 1 ]]
+}
+
+# Check if a file is an image
+klipdot_is_image() {
+    local file="$1"
+    [[ -f "$file" ]] || return 1
+    
+    local ext="${file:l:e}"  # Get extension in lowercase
+    for img_ext in $KLIPDOT_IMAGE_EXTENSIONS; do
+        [[ "$ext" == "$img_ext" ]] && return 0
+    done
+    return 1
+}
+
+# Check if a string looks like an image path
+klipdot_looks_like_image_path() {
+    local path="$1"
+    
+    # Remove quotes if present
+    path="${path%\"}"
+    path="${path#\"}"
+    path="${path%\'}"
+    path="${path#\'}"
+    
+    # Check if it's a valid file path with image extension
+    if [[ "$path" =~ ^[~/.].*\.(png|jpg|jpeg|gif|bmp|webp|svg|tiff|ico)$ ]]; then
+        # Expand path
+        path="${path/#\~/$HOME}"
+        [[ -f "$path" ]] && echo "$path" && return 0
+    fi
+    
+    return 1
+}
+
+# Show preview for an image file
+klipdot_show_preview() {
+    local image_path="$1"
+    
+    if ! klipdot_preview_available; then
+        return 1
+    fi
+    
+    if klipdot_is_image "$image_path"; then
+        echo "🖼️  Previewing: $(basename "$image_path")"
+        klipdot preview "$image_path" --width "$KLIPDOT_PREVIEW_WIDTH" --height "$KLIPDOT_PREVIEW_HEIGHT" 2>/dev/null
+        return $?
+    fi
+    
+    return 1
+}
+
+# Auto-preview function for command line
+klipdot_auto_preview() {
+    [[ $KLIPDOT_AUTO_PREVIEW -eq 0 ]] && return
+    
+    local line="$BUFFER"
+    local words=("${(@s/ /)line}")
+    
+    for word in $words; do
+        local image_path=$(klipdot_looks_like_image_path "$word")
+        if [[ -n "$image_path" ]]; then
+            klipdot_show_preview "$image_path"
+            break
+        fi
+    done
+}
+
+# Widget for manual preview trigger
+klipdot_preview_widget() {
+    local line="$BUFFER"
+    local words=("${(@s/ /)line}")
+    local found_image=""
+    
+    # Look for image paths in the current command line
+    for word in $words; do
+        local image_path=$(klipdot_looks_like_image_path "$word")
+        if [[ -n "$image_path" ]]; then
+            found_image="$image_path"
+            break
+        fi
+    done
+    
+    if [[ -n "$found_image" ]]; then
+        echo
+        klipdot_show_preview "$found_image"
+        zle redisplay
+    else
+        # Try to find image in current directory
+        local current_word="${BUFFER[(ws: :)CURSOR]}"
+        if [[ -n "$current_word" ]]; then
+            local matches=()
+            for ext in $KLIPDOT_IMAGE_EXTENSIONS; do
+                matches+=($current_word*.$ext(N))
+            done
+            
+            if [[ ${#matches[@]} -eq 1 && -f "${matches[1]}" ]]; then
+                echo
+                klipdot_show_preview "${matches[1]}"
+                zle redisplay
+            elif [[ ${#matches[@]} -gt 1 ]]; then
+                echo
+                echo "Multiple image matches:"
+                for match in $matches; do
+                    echo "  $match"
+                done
+                zle redisplay
+            else
+                echo
+                echo "No image found matching: $current_word"
+                zle redisplay
+            fi
+        fi
+    fi
+}
+
+# Register the widget
+zle -N klipdot_preview_widget
+
+# Bind Ctrl+P for manual preview
+bindkey '^P' klipdot_preview_widget
+
+# Hook into command execution to detect pasted image paths
+klipdot_preexec_hook() {
+    local cmd="$1"
+    
+    # Check if command contains image paths
+    local words=("${(@s/ /)cmd}")
+    for word in $words; do
+        local image_path=$(klipdot_looks_like_image_path "$word")
+        if [[ -n "$image_path" ]]; then
+            echo "🖼️  Detected image path: $(basename "$image_path")"
+            if [[ $KLIPDOT_AUTO_PREVIEW -eq 1 ]]; then
+                klipdot_show_preview "$image_path"
+            fi
+            break
+        fi
+    done
+}
+
+# Hook into right prompt to show preview info
+klipdot_rprompt_hook() {
+    if ! klipdot_preview_available; then
+        return
+    fi
+    
+    local line="$BUFFER"
+    if [[ -n "$line" ]]; then
+        local words=("${(@s/ /)line}")
+        for word in $words; do
+            local image_path=$(klipdot_looks_like_image_path "$word")
+            if [[ -n "$image_path" ]]; then
+                echo "%F{blue}🖼️%f"
+                return
+            fi
+        done
+    fi
+}
+
+# Hook into line editor to provide real-time feedback
+klipdot_line_hook() {
+    # This gets called on every keystroke
+    # We'll use it to update the right prompt
+    zle reset-prompt
+}
+
+# Register hooks if preview is enabled
+if klipdot_preview_available; then
+    # Add to preexec hooks
+    if [[ -z "$preexec_functions" ]]; then
+        preexec_functions=()
+    fi
+    preexec_functions+=(klipdot_preexec_hook)
+    
+    # Add line hook widget
+    zle -N klipdot_line_hook
+    
+    # Update right prompt to show image indicators
+    if [[ -z "$RPS1" ]]; then
+        RPS1='$(klipdot_rprompt_hook)'
+    else
+        RPS1="$RPS1"'$(klipdot_rprompt_hook)'
+    fi
+fi
+
+# Utility functions for manual use
+
+# Quick preview of files in current directory
+klipdot_ls_preview() {
+    local dir="${1:-.}"
+    
+    echo "📁 Images in $dir:"
+    for ext in $KLIPDOT_IMAGE_EXTENSIONS; do
+        for file in "$dir"/*.$ext(N); do
+            if [[ -f "$file" ]]; then
+                echo "  $(basename "$file")"
+                if [[ "$2" == "--preview" || "$2" == "-p" ]]; then
+                    klipdot_show_preview "$file"
+                    echo
+                fi
+            fi
+        done
+    done
+}
+
+# Preview the most recent screenshot
+klipdot_preview_recent() {
+    local screenshot_dir="$HOME/.klipdot/screenshots"
+    
+    if [[ ! -d "$screenshot_dir" ]]; then
+        echo "No screenshot directory found"
+        return 1
+    fi
+    
+    local recent_file=$(ls -t "$screenshot_dir"/*.{png,jpg,jpeg}(N) 2>/dev/null | head -1)
+    
+    if [[ -n "$recent_file" && -f "$recent_file" ]]; then
+        echo "📸 Most recent screenshot:"
+        klipdot_show_preview "$recent_file"
+    else
+        echo "No recent screenshots found"
+        return 1
+    fi
+}
+
+# Enhanced cat command that previews images
+klipdot_cat() {
+    for arg in "$@"; do
+        if klipdot_is_image "$arg"; then
+            klipdot_show_preview "$arg"
+        else
+            command cat "$arg"
+        fi
+    done
+}
+
+# Enhanced ls command that shows image previews
+klipdot_ls() {
+    local preview_mode=false
+    local args=()
+    
+    # Parse arguments
+    for arg in "$@"; do
+        if [[ "$arg" == "--preview" || "$arg" == "-p" ]]; then
+            preview_mode=true
+        else
+            args+=("$arg")
+        fi
+    done
+    
+    # Run normal ls
+    command ls "${args[@]}"
+    
+    # Show previews if requested
+    if [[ $preview_mode == true ]]; then
+        echo
+        echo "🖼️  Image previews:"
+        for file in "${args[@]:-*}"; do
+            if [[ -f "$file" ]] && klipdot_is_image "$file"; then
+                echo "━━━ $(basename "$file") ━━━"
+                klipdot_show_preview "$file"
+                echo
+            fi
+        done
+    fi
+}
+
+# Aliases for convenience
+alias lsp='klipdot_ls --preview'
+alias catimg='klipdot_cat'
+alias previewimg='klipdot_show_preview'
+alias recent='klipdot_preview_recent'
+alias imgls='klipdot_ls_preview'
+
+# Help function
+klipdot_preview_help() {
+    cat << 'EOF'
+🖼️  KlipDot ZSH Image Preview Integration
+
+Key Bindings:
+  Ctrl+P          - Preview image at cursor or in command line
+
+Commands:
+  previewimg FILE - Preview an image file
+  recent          - Preview most recent screenshot
+  imgls [DIR]     - List images in directory
+  lsp             - ls with image previews
+  catimg FILE     - cat that previews images
+
+Auto-detection:
+  • Automatically detects image paths in command line
+  • Shows 🖼️ indicator in right prompt when image detected
+  • Auto-previews on command execution (if enabled)
+
+Configuration:
+  KLIPDOT_PREVIEW_ENABLED=1    # Enable/disable preview
+  KLIPDOT_AUTO_PREVIEW=1       # Auto-preview on command exec
+  KLIPDOT_PREVIEW_WIDTH=80     # Preview width
+  KLIPDOT_PREVIEW_HEIGHT=24    # Preview height
+
+Examples:
+  echo ~/.klipdot/screenshots/image.png  # Will show preview
+  vim ~/Pictures/photo.jpg               # Will detect and preview
+  ls ~/Downloads/*.png                   # Shows 🖼️ indicator
+EOF
+}
+
+# Show help on first load if KLIPDOT_SHOW_HELP is set
+if [[ $KLIPDOT_SHOW_HELP -eq 1 ]] && klipdot_preview_available; then
+    echo "🖼️  KlipDot image preview loaded! Type 'klipdot_preview_help' for usage."
+fi

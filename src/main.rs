@@ -5,6 +5,7 @@ use klipdot::{
     config::Config,
     interceptor::TerminalInterceptor,
     service::ServiceManager,
+    image_preview::ImagePreviewManager,
 };
 use std::path::PathBuf;
 use tracing::{info, error};
@@ -57,6 +58,17 @@ enum Commands {
     Config {
         #[command(subcommand)]
         action: Option<ConfigAction>,
+    },
+    /// Preview an image in the terminal
+    Preview {
+        /// Path to the image file
+        image_path: PathBuf,
+        /// Maximum width in characters/pixels
+        #[arg(short, long)]
+        width: Option<u32>,
+        /// Maximum height in characters/pixels
+        #[arg(short = 'H', long)]
+        height: Option<u32>,
     },
 }
 
@@ -122,6 +134,9 @@ async fn main() -> Result<()> {
         }
         Commands::Config { action } => {
             handle_config_command(action, &config).await?;
+        }
+        Commands::Preview { image_path, width, height } => {
+            handle_preview_command(&config, &image_path, width, height).await?;
         }
     }
     
@@ -257,6 +272,18 @@ async fn handle_config_command(action: Option<ConfigAction>, config: &Config) ->
             println!("✅ Configuration reset to default");
         }
     }
+    
+    Ok(())
+}
+
+async fn handle_preview_command(config: &Config, image_path: &PathBuf, width: Option<u32>, height: Option<u32>) -> Result<()> {
+    info!("Showing preview for image: {:?}", image_path);
+    
+    let preview_manager = ImagePreviewManager::new(config.clone()).await
+        .map_err(|e| anyhow::anyhow!("Failed to create preview manager: {}", e))?;
+    
+    preview_manager.show_preview(image_path, width, height).await
+        .map_err(|e| anyhow::anyhow!("Failed to show preview: {}", e))?;
     
     Ok(())
 }
