@@ -4,6 +4,7 @@ use tokio::process::Command;
 use tracing::{debug, info, warn};
 
 /// Terminal image preview system supporting multiple protocols
+#[derive(Clone)]
 pub struct ImagePreviewManager {
     config: Config,
     preview_method: PreviewMethod,
@@ -34,6 +35,43 @@ impl ImagePreviewManager {
             config,
             preview_method,
         })
+    }
+    
+    /// Preview image data from stdin
+    pub async fn preview_stdin_data(&self, data: Vec<u8>) -> Result<()> {
+        // Create temporary file for stdin data
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join(format!("klipdot_stdin_{}.png", uuid::Uuid::new_v4()));
+        
+        std::fs::write(&temp_file, &data)?;
+        
+        // Show preview of temporary file
+        let result = self.show_preview(&temp_file, None, None).await;
+        
+        // Clean up temporary file
+        let _ = std::fs::remove_file(&temp_file);
+        
+        result
+    }
+    
+    /// Create a compact preview for LSP-style display
+    pub async fn show_compact_preview(&self, image_path: &Path) -> Result<String> {
+        if !image_path.exists() {
+            return Err(Error::NotFound(format!("Image file not found: {:?}", image_path)));
+        }
+        
+        let metadata = std::fs::metadata(image_path)?;
+        let file_name = image_path.file_name().unwrap_or_default().to_string_lossy();
+        let file_size = Self::format_file_size(metadata.len());
+        let dimensions = self.get_image_dimensions(image_path).await.unwrap_or_default();
+        
+        let mut info = format!("🖼️ {}", file_name);
+        if !dimensions.is_empty() {
+            info.push_str(&format!(" ({})", dimensions));
+        }
+        info.push_str(&format!(" - {}", file_size));
+        
+        Ok(info)
     }
     
     /// Detect the best available preview method for the current terminal

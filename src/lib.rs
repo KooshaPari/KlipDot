@@ -6,6 +6,7 @@ pub mod service;
 pub mod installer;
 pub mod image_processor;
 pub mod image_preview;
+pub mod stdout_monitor;
 pub mod shell_hooks;
 
 pub use error::{Error, Result};

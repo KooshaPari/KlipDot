@@ -246,9 +246,34 @@ klipdot_cat() {
         if klipdot_is_image "$arg"; then
             klipdot_show_preview "$arg"
         else
-            command cat "$arg"
+            # Use monitor-output to detect image paths in cat output
+            command cat "$arg" | klipdot monitor-output 2>/dev/null || command cat "$arg"
         fi
     done
+}
+
+# Live preview mode for editing image paths
+klipdot_edit_with_preview() {
+    local file="$1"
+    echo "🔍 Starting live preview mode for editing: $file"
+    echo "Any image paths you type will be auto-previewed!"
+    
+    # Start live preview in background
+    klipdot live-preview --auto-preview &
+    local preview_pid=$!
+    
+    # Open editor
+    ${EDITOR:-vim} "$file"
+    
+    # Kill live preview when done
+    kill $preview_pid 2>/dev/null
+}
+
+# Monitor any command's output for image paths
+klipdot_monitor() {
+    local cmd="$@"
+    echo "🖼️  Monitoring command output for images: $cmd"
+    $cmd 2>&1 | klipdot monitor-output
 }
 
 # Enhanced ls command that shows image previews
@@ -288,6 +313,8 @@ alias catimg='klipdot_cat'
 alias previewimg='klipdot_show_preview'
 alias recent='klipdot_preview_recent'
 alias imgls='klipdot_ls_preview'
+alias editlive='klipdot_edit_with_preview'
+alias monitor='klipdot_monitor'
 
 # Help function
 klipdot_preview_help() {
@@ -302,7 +329,9 @@ Commands:
   recent          - Preview most recent screenshot
   imgls [DIR]     - List images in directory
   lsp             - ls with image previews
-  catimg FILE     - cat that previews images
+  catimg FILE     - cat that previews images and detects paths in output
+  editlive FILE   - Edit with LSP-style live preview
+  monitor COMMAND - Monitor any command output for image paths
 
 Auto-detection:
   • Automatically detects image paths in command line

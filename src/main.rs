@@ -6,9 +6,10 @@ use klipdot::{
     interceptor::TerminalInterceptor,
     service::ServiceManager,
     image_preview::ImagePreviewManager,
+    stdout_monitor::{StdoutMonitor, LivePreviewSystem},
 };
 use std::path::PathBuf;
-use tracing::{info, error};
+use tracing::{info, error, warn};
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser)]
@@ -69,6 +70,20 @@ enum Commands {
         /// Maximum height in characters/pixels
         #[arg(short = 'H', long)]
         height: Option<u32>,
+    },
+    /// Monitor command output for image paths and auto-preview
+    MonitorOutput {
+        /// Command to monitor (optional, if not provided reads from stdin)
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// Preview image data from stdin
+    PreviewStdin,
+    /// Enable LSP-style live preview mode
+    LivePreview {
+        /// Enable auto-preview as you type
+        #[arg(long)]
+        auto_preview: bool,
     },
 }
 
@@ -137,6 +152,15 @@ async fn main() -> Result<()> {
         }
         Commands::Preview { image_path, width, height } => {
             handle_preview_command(&config, &image_path, width, height).await?;
+        }
+        Commands::MonitorOutput { command } => {
+            handle_monitor_output_command(&config, command).await?;
+        }
+        Commands::PreviewStdin => {
+            handle_preview_stdin_command(&config).await?;
+        }
+        Commands::LivePreview { auto_preview } => {
+            handle_live_preview_command(&config, auto_preview).await?;
         }
     }
     
@@ -284,6 +308,93 @@ async fn handle_preview_command(config: &Config, image_path: &PathBuf, width: Op
     
     preview_manager.show_preview(image_path, width, height).await
         .map_err(|e| anyhow::anyhow!("Failed to show preview: {}", e))?;
+    
+    Ok(())
+}
+
+async fn handle_monitor_output_command(config: &Config, command: Vec<String>) -> Result<()> {
+    let monitor = StdoutMonitor::new(config.clone()).await
+        .map_err(|e| anyhow::anyhow!("Failed to create stdout monitor: {}", e))?;
+    
+    if command.is_empty() {
+        // Monitor stdin
+        info!("Monitoring stdin for image paths...");
+        use std::io::{self, BufRead, BufReader};
+        
+        let stdin = io::stdin();
+        let reader = BufReader::new(stdin.lock());
+        
+        for (line_num, line) in reader.lines().enumerate() {
+            let line = line.map_err(|e| anyhow::anyhow!("Failed to read line: {}", e))?;
+            println!("{}", line); // Echo the line
+            
+            // Detect images in this line
+            let detected = monitor.detect_images_in_line(&line, line_num + 1);
+            for image in detected {
+                println!("🖼️  Detected image: {}", image.path.display());
+                // Optionally show preview here
+            }
+        }
+    } else {
+        // Monitor command output
+        info!("Monitoring command: {:?}", command);
+        monitor.monitor_command(command).await
+            .map_err(|e| anyhow::anyhow!("Failed to monitor command: {}", e))?;
+    }
+    
+    Ok(())
+}
+
+async fn handle_preview_stdin_command(config: &Config) -> Result<()> {
+    info!("Reading image data from stdin...");
+    
+    let preview_manager = ImagePreviewManager::new(config.clone()).await
+        .map_err(|e| anyhow::anyhow!("Failed to create preview manager: {}", e))?;
+    
+    use std::io::{self, Read};
+    
+    let mut buffer = Vec::new();
+    io::stdin().read_to_end(&mut buffer)
+        .map_err(|e| anyhow::anyhow!("Failed to read from stdin: {}", e))?;
+    
+    if buffer.is_empty() {
+        return Err(anyhow::anyhow!("No data received from stdin"));
+    }
+    
+    preview_manager.preview_stdin_data(buffer).await
+        .map_err(|e| anyhow::anyhow!("Failed to preview stdin data: {}", e))?;
+    
+    Ok(())
+}
+
+async fn handle_live_preview_command(config: &Config, auto_preview: bool) -> Result<()> {
+    info!("Starting LSP-style live preview mode (auto_preview: {})", auto_preview);
+    
+    let mut live_system = LivePreviewSystem::new(config.clone()).await
+        .map_err(|e| anyhow::anyhow!("Failed to create live preview system: {}", e))?;
+    
+    println!("🔍 Live Preview Mode Enabled");
+    println!("Type image paths and see previews in real-time!");
+    println!("Press Ctrl+C to exit");
+    
+    use std::io::{self, BufRead, BufReader};
+    
+    let stdin = io::stdin();
+    let reader = BufReader::new(stdin.lock());
+    
+    for line in reader.lines() {
+        let line = line.map_err(|e| anyhow::anyhow!("Failed to read line: {}", e))?;
+        
+        if auto_preview {
+            // Show live preview for the entire line
+            let cursor_pos = line.len(); // Assume cursor is at end
+            if let Err(e) = live_system.show_live_preview(&line, cursor_pos).await {
+                warn!("Failed to show live preview: {}", e);
+            }
+        }
+        
+        println!("Input: {}", line);
+    }
     
     Ok(())
 }
