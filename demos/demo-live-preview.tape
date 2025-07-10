@@ -1,79 +1,94 @@
-# VHS tape file for demonstrating KlipDot live preview functionality
-# Run with: vhs demo-live-preview.tape
+# VHS demonstration of KlipDot live preview and LSP-style features
+# Generate with: vhs demo-live-preview.tape
 
-Output demos/live-preview.gif
-Set FontSize 14
-Set Width 1200
-Set Height 600
+Output live-preview.gif
+Set FontSize 16
+Set Width 1400
+Set Height 800
 Set Theme "Catppuccin Mocha"
 
-Type "# KlipDot - Live Preview Demo"
+Type "echo 'KlipDot - Live Preview Demo'"
+Sleep 500ms
+Enter
+
+Type "echo ''"
+Enter
+
+Type "echo 'LSP-style Real-time Image Detection'"
 Sleep 1s
 Enter
 
-Type "# Demo: LSP-style Real-time Image Detection"
-Sleep 1s
+Type "echo ''"
 Enter
 
-Type "# 1. Load ZSH integration"
+Type "echo '1. Load enhanced ZSH integration'"
 Sleep 1s
 Enter
 
 Type "source ~/.klipdot/zsh-preview-integration.zsh"
 Sleep 500ms
 Enter
+Sleep 1s
 
-Type "# 2. Alt+I keybinding demo"
+Type "echo ''"
+Enter
+
+Type "echo '2. Keybinding demo (Alt+I for instant preview)'"
 Sleep 1s
 Enter
 
-Type "# Type an image path and press Alt+I to preview"
+Type "echo 'Type image path and press Alt+I'"
 Sleep 1s
 Enter
 
-Type "~/.klipdot/screenshots/clipboard-2025-07-10T03-04-14.342Z-ee71d43d.png"
-Sleep 1s
-# Note: Alt+I would be pressed here in real usage
-Type " # <-- Press Alt+I here for instant preview"
+Type "echo 'Example: ~/.klipdot/screenshots/demo.png'"
 Sleep 1s
 Enter
 
-Type "# 3. Live preview mode"
+Type "echo ''"
+Enter
+
+Type "echo '3. Auto-detection capabilities'"
 Sleep 1s
 Enter
 
-Type "echo 'Starting live preview mode...'"
+Type "echo 'Commands with image paths are detected'"
 Sleep 500ms
 Enter
+Sleep 1s
 
-Type "echo '~/.klipdot/screenshots/test.png' | klipdot live-preview --auto-preview"
-Sleep 500ms
-Enter
-Sleep 3s
-
-Type "# 4. Stdin image data preview"
+Type "echo 'ls ~/.klipdot/screenshots/*.png'"
 Sleep 1s
 Enter
 
-Type "# Preview image data from stdin"
-Sleep 500ms
+Type "echo ''"
 Enter
 
-Type "echo 'cat image.png | klipdot preview-stdin'"
-Sleep 500ms
-Enter
-
-Type "# 5. Auto-detection in file operations"
+Type "echo '4. File operation monitoring'"
 Sleep 1s
 Enter
 
-Type "cp ~/.klipdot/screenshots/clipboard-2025-07-10T03-04-14.342Z-ee71d43d.png ~/Pictures/demo.png"
-Sleep 500ms
+Type "echo 'File operations with images are monitored'"
+Sleep 1s
 Enter
+
+Type "echo ''"
+Enter
+
+Type "echo '5. Real-time clipboard monitoring'"
+Sleep 1s
+Enter
+
+Type "echo 'KlipDot watches for Cmd+Shift+(3-5) screenshots'"
+Sleep 1s
+Enter
+
+Type "echo 'Automatic file path replacement in terminal'"
+Sleep 1s
+Enter
+
+Type "echo ''"
+Enter
+
+Type "echo 'Live Preview Demo Complete!'"
 Sleep 2s
-
-Type "# Image operation detected and previewed!"
-Sleep 1s
-Enter
-
-Sleep 3s

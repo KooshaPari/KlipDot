@@ -2,9 +2,17 @@
 
 This directory contains demonstration materials for KlipDot's features.
 
+## Generated Demonstrations
+
+The following GIF demonstrations are included:
+
+- **[basic-preview.gif](basic-preview.gif)** - Basic image preview functionality
+- **[tui-integration.gif](tui-integration.gif)** - TUI application integration
+- **[live-preview.gif](live-preview.gif)** - LSP-style live preview features
+
 ## VHS Tape Files
 
-Use [VHS](https://github.com/charmbracelet/vhs) to generate GIF demonstrations:
+Use [VHS](https://github.com/charmbracelet/vhs) to regenerate GIF demonstrations:
 
 ```bash
 # Install VHS

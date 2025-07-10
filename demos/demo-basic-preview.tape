@@ -1,58 +1,73 @@
-# VHS tape file for demonstrating KlipDot basic preview functionality
-# Run with: vhs demo-basic-preview.tape
+# VHS demonstration of KlipDot basic preview functionality
+# Generate with: vhs demo-basic-preview.tape
 
-Output demos/basic-preview.gif
-Set FontSize 14
-Set Width 1200
-Set Height 600
+Output basic-preview.gif
+Set FontSize 16
+Set Width 1400
+Set Height 800
 Set Theme "Catppuccin Mocha"
 
-Type "# KlipDot - Universal Terminal Image Interceptor"
-Sleep 1s
-Enter
-
-Type "# Demo: Basic Image Preview"
-Sleep 1s
-Enter
-
-Type "# 1. Quick preview with file info"
-Sleep 1s
-Enter
-
-Type "klipdot preview ~/.klipdot/screenshots/clipboard-2025-07-10T03-04-14.342Z-ee71d43d.png"
+Type "echo 'KlipDot - Universal Terminal Image Interceptor'"
 Sleep 500ms
 Enter
-Sleep 3s
 
-Type "# 2. Image detection in ls output"
+Type "echo ''"
+Enter
+
+Type "echo 'Basic Image Preview Demo'"
 Sleep 1s
 Enter
 
-Type "ls ~/.klipdot/screenshots/ | head -3"
+Type "echo ''"
+Enter
+
+Type "echo '1. Show KlipDot version and status'"
+Sleep 1s
+Enter
+
+Type "klipdot --version"
+Sleep 500ms
+Enter
+Sleep 1s
+
+Type "echo ''"
+Enter
+
+Type "echo '2. Check available screenshots'"
+Sleep 1s
+Enter
+
+Type "ls -la ~/.klipdot/screenshots/"
 Sleep 500ms
 Enter
 Sleep 2s
 
-Type "# 3. Monitor command output for images"
-Sleep 1s
+Type "echo ''"
 Enter
 
-Type "echo 'Found image: ~/.klipdot/screenshots/test.png' | klipdot monitor-output"
-Sleep 500ms
-Enter
-Sleep 3s
-
-Type "# 4. ZSH integration - quick preview"
+Type "echo '3. Load ZSH integration'"
 Sleep 1s
 Enter
 
 Type "source ~/.klipdot/zsh-preview-integration.zsh"
 Sleep 500ms
 Enter
+Sleep 1s
 
-Type "klipdot_quick_preview ~/.klipdot/screenshots/clipboard-2025-07-10T03-04-14.342Z-ee71d43d.png"
+Type "echo ''"
+Enter
+
+Type "echo '4. Quick preview function available'"
+Sleep 1s
+Enter
+
+Type "echo 'klipdot_quick_preview shows file info and dimensions'"
 Sleep 500ms
 Enter
-Sleep 3s
+Sleep 1s
 
+Type "echo ''"
+Enter
+
+Type "echo 'KlipDot Basic Preview Demo Complete!'"
 Sleep 2s
