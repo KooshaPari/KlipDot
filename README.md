@@ -6,11 +6,18 @@ A high-performance, universal terminal image interceptor that automatically capt
 
 See KlipDot in action with our VHS-generated demonstrations:
 
-| Demo | Description | GIF |
-|------|-------------|-----|
-| **Basic Preview** | Core image preview functionality | ![Basic Preview](demos/basic-preview.gif) |
-| **TUI Integration** | Enhanced TUI application monitoring | ![TUI Integration](demos/tui-integration.gif) |
-| **Live Preview** | LSP-style real-time image detection | ![Live Preview](demos/live-preview.gif) |
+<div align="center">
+
+### 🖼️ Basic Preview Functionality
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/basic-preview.gif" width="800" alt="KlipDot Basic Preview Demo">
+
+### 🔧 TUI Integration Features  
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/tui-integration.gif" width="800" alt="KlipDot TUI Integration Demo">
+
+### ⚡ Live Preview & LSP-style Detection
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/live-preview.gif" width="800" alt="KlipDot Live Preview Demo">
+
+</div>
 
 📁 **[View all demonstrations →](demos/)**
 
