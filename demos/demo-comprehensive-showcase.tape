@@ -8,21 +8,12 @@ Set Height 800
 Set Theme "Molokai"
 
 # Title and setup
-Type "# 🎯 KlipDot - Universal Terminal Image Interceptor"
+Type "clear"
+Enter
+Type "# KlipDot - Universal Terminal Image Interceptor"
 Sleep 1s
 Enter
-Type "# Comprehensive Feature Demonstration"
-Sleep 1s
-Enter
-Enter
-
-# Show system info
-Type "echo 'System: macOS | Terminal: $(echo $TERM) | Shell: $(basename $SHELL)'"
-Sleep 500ms
-Enter
-Sleep 2s
-
-Type "echo 'Demonstrating KlipDot v0.1.0 real functionality...'"
+Type "# Real functionality demonstration"
 Sleep 1s
 Enter
 Enter
@@ -107,59 +98,46 @@ Sleep 1s
 Enter
 Sleep 2s
 
-# 7. Performance metrics
-Type "# 7️⃣ Performance Metrics"
+# 7. Install process demonstration
+Type "# 7️⃣ Installation Check"
 Sleep 1s
 Enter
-Type "echo 'Memory usage: <50MB | CPU: <1% idle | Response: <100ms'"
+Type "which klipdot"
 Sleep 1s
 Enter
-Type "echo 'Clipboard poll: 1000ms | File watch: real-time'"
+Sleep 1s
+
+Type "klipdot config show | head -10"
+Sleep 1s
+Enter
+Sleep 3s
+
+# 8. Cleanup and help
+Type "# 8️⃣ Available Commands"
+Sleep 1s
+Enter
+Type "klipdot cleanup --help"
 Sleep 1s
 Enter
 Sleep 2s
 
-# 8. Security features
-Type "# 8️⃣ Security Features"
+Type "# 9️⃣ Service Control"
 Sleep 1s
 Enter
-Type "echo '🔒 Local processing only | 🛡️ No network calls'"
+Type "klipdot stop"
 Sleep 1s
 Enter
-Type "echo '📁 Secure file permissions | 🧹 Auto cleanup'"
 Sleep 1s
-Enter
-Sleep 2s
-
-# 9. Cross-platform support
-Type "# 9️⃣ Cross-Platform Support"
-Sleep 1s
-Enter
-Type "echo '🍎 macOS | 🐧 Linux | 🪟 Windows'"
-Sleep 1s
-Enter
-Type "echo 'Clipboard: pbcopy/xclip | Display: chafa/timg'"
-Sleep 1s
-Enter
-Sleep 2s
 
 # 10. Help and documentation
-Type "# 🔟 Available Commands"
+Type "# 🔟 Full Help System"
 Sleep 1s
 Enter
-Type "klipdot --help | head -15"
+Type "klipdot --help"
 Sleep 1s
 Enter
 Sleep 3s
 
 # Conclusion
-Type "# ✅ KlipDot Demonstration Complete!"
-Sleep 1s
-Enter
-Type "# 🚀 Universal image interception for any CLI/TUI application"
-Sleep 1s
-Enter
-Type "# 📖 Full documentation: https://github.com/KooshaPari/KlipDot"
-Sleep 2s
-Enter
+Type "# ✅ KlipDot Real Functionality Demonstrated!"
 Sleep 2s

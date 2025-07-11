@@ -11,13 +11,13 @@ A high-performance, universal terminal image interceptor that automatically capt
 
 <div align="center">
 
-### 🚀 Comprehensive Feature Showcase
-*Real functionality demonstration with actual KlipDot commands*
-<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/comprehensive-showcase.gif" width="800" alt="KlipDot Comprehensive Showcase">
+### 🚀 Authentic Real Usage Demo
+*Live demonstration with actual klipdot binary execution*
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/authentic-usage.gif" width="800" alt="KlipDot Authentic Usage">
 
-### 🤖 AI Integration & API Demo  
-*Claude Code integration with HTTP API and performance metrics*
-<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/ai-integration.gif" width="800" alt="KlipDot AI Integration">
+### 🔧 Working Features Showcase
+*Real command execution showing KlipDot functionality*
+<img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/working-features.gif" width="800" alt="KlipDot Working Features">
 
 ### 📋 Real Clipboard Workflow
 *Authentic clipboard monitoring and image interception*

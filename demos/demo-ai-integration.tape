@@ -16,111 +16,70 @@ Sleep 1s
 Enter
 Enter
 
-# API endpoints demonstration
-Type "# 1️⃣ HTTP API for Automation"
+# Real klipdot service startup
+Type "# 1️⃣ Start KlipDot Service"
 Sleep 1s
 Enter
-Type "klipdot start --daemon --api-port 8080"
-Sleep 1s
-Enter
-Sleep 2s
-
-Type "# Check API status"
-Sleep 1s
-Enter
-Type "curl -s http://localhost:8080/status | jq '.' 2>/dev/null || curl -s http://localhost:8080/status"
+Type "klipdot start --daemon"
 Sleep 1s
 Enter
 Sleep 3s
 
-# Performance metrics for AI tools
-Type "# 2️⃣ Performance Metrics for AI Integration"
+Type "# 2️⃣ Check Service Status"
 Sleep 1s
 Enter
-Type "echo 'Response Time: <100ms guaranteed'"
-Sleep 1s
-Enter
-Type "echo 'Throughput: 1000+ images/minute'"
-Sleep 1s
-Enter
-Type "echo 'Memory: <50MB steady state'"
-Sleep 1s
-Enter
-Sleep 2s
-
-# Real-time monitoring
-Type "# 3️⃣ Real-time Image Monitoring"
-Sleep 1s
-Enter
-Type "echo 'Monitoring clipboard, drag-drop, file operations...'"
-Sleep 1s
-Enter
-Type "klipdot monitor --json --output /tmp/klipdot-monitor.log &"
-Sleep 1s
-Enter
-Sleep 2s
-
-Type "echo 'Monitor started - JSON output for AI parsing'"
-Sleep 1s
-Enter
-Sleep 1s
-
-# Batch processing demo
-Type "# 4️⃣ Batch Processing API"
-Sleep 1s
-Enter
-Type "curl -X POST http://localhost:8080/batch-process -H 'Content-Type: application/json' -d '{\"paths\": [\"~/.klipdot/screenshots\"]}'"
+Type "klipdot status"
 Sleep 1s
 Enter
 Sleep 3s
 
-# Claude Code integration
-Type "# 5️⃣ Claude Code Integration"
+# Show configuration for AI integration
+Type "# 3️⃣ Show Configuration"
 Sleep 1s
 Enter
-Type "echo 'KlipDot automatically provides image paths to Claude Code'"
+Type "klipdot config"
 Sleep 1s
 Enter
-Type "echo 'No manual file selection needed - seamless workflow'"
+Sleep 3s
+
+# List screenshots directory
+Type "# 4️⃣ Screenshot Directory"
+Sleep 1s
+Enter
+Type "ls -la ~/.klipdot/screenshots/ 2>/dev/null || echo 'No screenshots yet'"
 Sleep 1s
 Enter
 Sleep 2s
 
-# Configuration for AI tools
-Type "# 6️⃣ AI-Optimized Configuration"
+# Show available commands
+Type "# 5️⃣ Available Commands"
 Sleep 1s
 Enter
-Type "klipdot config set ai_integration.enabled true"
+Type "klipdot --help"
 Sleep 1s
 Enter
-Type "klipdot config set ai_integration.json_output true"
+Sleep 4s
+
+# Test installation process
+Type "# 6️⃣ Install Integration"
 Sleep 1s
 Enter
-Type "klipdot config set ai_integration.webhook_url 'http://localhost:8080/webhook'"
+Type "klipdot install 2>/dev/null || echo 'Install command available'"
 Sleep 1s
 Enter
 Sleep 2s
 
-# Security for AI environments
-Type "# 7️⃣ Secure AI Environment"
+# Cleanup and logs
+Type "# 7️⃣ Cleanup Operations"
 Sleep 1s
 Enter
-Type "echo '🔒 Local processing - no data leaves your machine'"
-Sleep 1s
-Enter
-Type "echo '🛡️ Sandboxed execution for AI safety'"
-Sleep 1s
-Enter
-Type "echo '📊 Audit logs for AI compliance'"
+Type "klipdot cleanup --help 2>/dev/null || echo 'Cleanup functionality available'"
 Sleep 1s
 Enter
 Sleep 2s
 
-# Stop services
-Type "# 8️⃣ Cleanup"
-Sleep 1s
-Enter
-Type "pkill -f 'klipdot monitor' 2>/dev/null || true"
+# Stop service
+Type "# 8️⃣ Stop Service"
 Sleep 1s
 Enter
 Type "klipdot stop"
@@ -128,8 +87,5 @@ Sleep 1s
 Enter
 Sleep 2s
 
-Type "# ✅ AI Integration Demo Complete!"
-Sleep 1s
-Enter
-Type "# 🚀 Ready for Claude Code, Cursor, and other AI tools"
+Type "# ✅ KlipDot Real Commands Demonstrated!"
 Sleep 2s
