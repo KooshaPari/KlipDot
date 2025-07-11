@@ -2,16 +2,17 @@
 
 This directory contains demonstration materials for KlipDot's features.
 
-## Generated Demonstrations
+## 🎬 Authentic Demonstrations
 
-The following GIF demonstrations showcase real KlipDot functionality:
+**NEW**: Real klipdot binary execution demonstrations (no fake output):
 
-- **[terminal-preview.gif](terminal-preview.gif)** - In-terminal image display using chafa and timg
-- **[working-features.gif](working-features.gif)** - Core features: status, screenshots, ZSH integration
-- **[real-preview.gif](real-preview.gif)** - Real image preview and information display
+- **[authentic-usage.gif](authentic-usage.gif)** - **AUTHENTIC**: Real klipdot commands and actual output
+- **[working-features.gif](working-features.gif)** - Core features with real command execution
 - **[clipboard-workflow.gif](clipboard-workflow.gif)** - Complete clipboard interception workflow
+- **[terminal-preview.gif](terminal-preview.gif)** - In-terminal image display using chafa and timg
+- **[real-preview.gif](real-preview.gif)** - Real image preview and information display
 
-### Previous Demos (basic functionality)
+### Basic Demos
 - **[basic-preview.gif](basic-preview.gif)** - Basic command demonstrations
 - **[tui-integration.gif](tui-integration.gif)** - TUI application integration concepts
 - **[live-preview.gif](live-preview.gif)** - LSP-style live preview concepts
@@ -24,35 +25,47 @@ Use [VHS](https://github.com/charmbracelet/vhs) to regenerate GIF demonstrations
 # Install VHS
 brew install vhs
 
-# Generate basic preview demo
+# Generate AUTHENTIC demo with real klipdot commands
+vhs demo-authentic-usage.tape
+
+# Generate comprehensive showcase
+vhs demo-comprehensive-showcase.tape
+
+# Generate AI integration demo
+vhs demo-ai-integration.tape
+
+# Generate basic demos
 vhs demo-basic-preview.tape
-
-# Generate TUI integration demo  
 vhs demo-tui-integration.tape
-
-# Generate live preview demo
 vhs demo-live-preview.tape
 ```
 
 ## Demo Scripts
 
-### 1. Basic Preview (`demo-basic-preview.tape`)
-- Image preview with file info and dimensions
-- Image detection in command output
-- ZSH integration functions
-- Quick preview functionality
+### 🎯 Authentic Usage (`demo-authentic-usage.tape`)
+- **REAL klipdot binary execution** - no fake output
+- Version check with actual output
+- Service start/stop with real status
+- Configuration display with actual config
+- Help system showing real command options
+- Directory structure verification
 
-### 2. TUI Integration (`demo-tui-integration.tape`)
-- TUI application monitoring
-- File manager integration
-- Enhanced command aliases
-- Live preview mode
+### 🤖 AI Integration (`demo-ai-integration.tape`)
+- Service management for AI workflows
+- Configuration for Claude Code integration
+- Real command execution for automation
+- Screenshot directory management
 
-### 3. Live Preview (`demo-live-preview.tape`)
-- LSP-style real-time previews
-- Stdin image data handling
-- Auto-detection features
-- Keybinding demonstrations
+### 🔧 Comprehensive Showcase (`demo-comprehensive-showcase.tape`)
+- Complete feature demonstration
+- Real klipdot command execution
+- Service status and management
+- Configuration and help systems
+
+### Legacy Demos
+1. **Basic Preview** (`demo-basic-preview.tape`) - Image preview basics
+2. **TUI Integration** (`demo-tui-integration.tape`) - TUI application monitoring  
+3. **Live Preview** (`demo-live-preview.tape`) - Real-time preview features
 
 ## Running Live Demos
 

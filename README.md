@@ -12,7 +12,7 @@ A high-performance, universal terminal image interceptor that automatically capt
 <div align="center">
 
 ### 🚀 Authentic Real Usage Demo
-*Live demonstration with actual klipdot binary execution*
+*🎯 **AUTHENTIC**: Real klipdot binary execution - no fake output*
 <img src="https://raw.githubusercontent.com/KooshaPari/KlipDot/main/demos/authentic-usage.gif" width="800" alt="KlipDot Authentic Usage">
 
 ### 🔧 Working Features Showcase
@@ -30,6 +30,8 @@ A high-performance, universal terminal image interceptor that automatically capt
 </div>
 
 📁 **[View all demonstrations →](demos/)** | 🎥 **[Generate your own demos →](demos/README.md)**
+
+> **✅ Authentic Demonstrations**: All GIFs show real klipdot binary execution with actual terminal output - no fake echo statements or simulated responses.
 
 ## 🖥️ Terminal Image Display
 
